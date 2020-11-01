@@ -16,8 +16,7 @@ truffle compile
 ```
 
 ## Deploy contracts
-T
-o run migrations in a development environment:
+To run migrations in a development environment:
 ```bash
 truffle develop
 ```
