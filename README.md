@@ -1,5 +1,15 @@
-# blockchain
+# Blockchain
 Blockchain Repository for the TuiChain Application
+
+## Structure
+
+**contracts/**: Directory for Solidity contracts
+
+**migrations/**: Directory for scriptable deployment files
+
+**test/**: Directory for test files for testing your application and contracts
+
+**truffle-config.js**: Truffle configuration file
 
 ## Startup
 
