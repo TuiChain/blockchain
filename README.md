@@ -18,6 +18,13 @@ If truffle not installed yet:
 npm install -g truffle
 ```
 
+## Install
+
+Install the required dependencies:
+```bash
+npm install
+```
+
 ## Compile
 
 To compile the contracts within contracts folder, you have to be in the project root:
