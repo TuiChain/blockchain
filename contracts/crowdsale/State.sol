@@ -11,18 +11,12 @@ contract State {
   enum StateEnum { SALE, ACTIVE, REDEEMABLE, CANCELED }
   StateEnum private state;
 
-  // start and end timestamps where investments are allowed 
-  uint256 internal startTime;
-  uint256 internal endTime;
-
   //=======================
   // Constructor
   //=======================
 
-  constructor (uint256 _startTime, uint256 _endTime) internal {
+  constructor () internal {
     state = StateEnum.SALE;
-    startTime = _startTime;
-    endTime = _endTime;
   }
 
   //=======================
@@ -39,7 +33,7 @@ contract State {
     _;
   }
 
-  modifier isRedeembleState() {
+  modifier isRedeemableState() {
     require(state == StateEnum.REDEEMABLE);
     _;
   }

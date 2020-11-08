@@ -28,21 +28,29 @@ contract Crowdsale is Ownable, State {
   // how many token units a buyer gets per wei
   uint256 public rate;
 
+  // how many wei an investor gets per token
+  uint256 public paybackRate;
+
+  // start and end timestamps where investments are allowed 
+  uint256 internal startTime;
+  uint256 internal endTime;
+
 
   //=======================
   // Constructor
   //=======================
 
   constructor (uint256 _startTime, uint256 _endTime, uint256 _rate, DebtToken _token) 
-    State(_startTime, _endTime)
-    public 
-  {
+    State() public {
 
     require(ValidationLibrary.validContractCreation(_startTime, _endTime, _rate, _token));
 
-    rate = _rate;
-    wallet = msg.sender;
     token = _token;
+    wallet = msg.sender;
+    rate = _rate;
+    paybackRate = 0;
+    startTime = _startTime;
+    endTime = _endTime;
 
   }
 
@@ -74,11 +82,11 @@ contract Crowdsale is Ownable, State {
       msg.sender.transfer(weiAmount);
     }
     
-    // send event
-    TokenAcquisition(msg.sender, weiAmount, amount);
-    
     // transfer ETH to contract
     address(this).transfer(msg.value);
+
+    // send event
+    TokenAcquisition(msg.sender, weiAmount, amount);
     
   }
 
@@ -97,11 +105,11 @@ contract Crowdsale is Ownable, State {
     // safe transfer of tokens
     token.manualTransfer(msg.sender, wallet, _tokens);
 
-    // send event
-    TokenCancelation(msg.sender, refundWei, _tokens);
-
     // refund
     msg.sender.transfer(refundWei);
+
+    // send event
+    TokenCancelation(msg.sender, refundWei, _tokens);
 
   }
 
@@ -118,8 +126,13 @@ contract Crowdsale is Ownable, State {
   // raise funds to give'em to the proper student
   function raiseFunds() public onlyOwner isActiveState {
     
+    uint256 amount = address(this).balance;
+
     // transfer to the owner's wallet
-    wallet.transfer(address(this).balance);
+    wallet.transfer(amount);
+
+    // event
+    FundsRaised(wallet, amount);
 
   }
 
@@ -127,8 +140,32 @@ contract Crowdsale is Ownable, State {
   // WE SHOULD APPLY TAXES HERE
   function payback() public payable isActiveState {
 
+    // send payback to contract
     address(this).transfer(msg.value);
+
+    // event
+    Payback(msg.sender, msg.value);
     
+  }
+
+  // allow investors to redeem tokens and receive their part back in ETH
+  function redeemTokens() public isRedeemableState {
+    
+    // get amount of tokens
+    uint256 tokenAmount = token.balanceOf(msg.sender);
+
+    // calculate the wei to receive
+    uint256 weiAmount = tokenAmount.mul(paybackRate);
+
+    // transfer tokens to the original wallet
+    token.manualTransfer(msg.sender, wallet, tokenAmount);
+
+    // send the ETH to investor
+    msg.sender.transfer(weiAmount);
+
+    // event
+    TokenRedeem(msg.sender, weiAmount, tokenAmount);
+
   }
 
 
@@ -148,7 +185,10 @@ contract Crowdsale is Ownable, State {
   }
 
   // function call by the owner, to set the crowdsale to redeemable state
-  function transitionToRedeemable() public onlyOwner isActiveState {
+  function transitionToRedeemable(uint256 _paybackRate) public onlyOwner isActiveState {
+
+    // set the value per token
+    paybackRate = _paybackRate;
 
     // set state
     setState(StateEnum.REDEEMABLE);
@@ -193,10 +233,32 @@ contract Crowdsale is Ownable, State {
 
   /**
   * event for token cancelation
-  * @param purchaser who want monay back
+  * @param purchaser who want money back
   * @param value weis refunded
   * @param amount amount of tokens canceled
   */
   event TokenCancelation(address indexed purchaser, uint256 value, uint256 amount);
+
+  /**
+  * event for raise funds
+  * @param borrower who want money back
+  * @param value weis received
+  */
+  event FundsRaised(address indexed borrower, uint256 value);
+
+  /**
+  * event for raise funds
+  * @param payer who pay money back
+  * @param value weis paied
+  */
+  event Payback(address indexed payer, uint256 value);
   
+  /**
+  * event for token redeem
+  * @param purchaser who want money back
+  * @param value weis received
+  * @param amount amount of tokens redeemed
+  */
+  event TokenRedeem(address indexed purchaser, uint256 value, uint256 amount);
+
 }
