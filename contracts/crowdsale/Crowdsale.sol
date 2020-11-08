@@ -28,8 +28,6 @@ contract Crowdsale is Ownable, State {
   // how many token units a buyer gets per wei
   uint256 public rate;
 
-  // amount of raised money in wei
-  uint256 public weiRaised;
 
   //=======================
   // Constructor
@@ -39,19 +37,21 @@ contract Crowdsale is Ownable, State {
     State(_startTime, _endTime)
     public 
   {
+
     require(ValidationLibrary.validContractCreation(_startTime, _endTime, _rate, _token));
 
     rate = _rate;
     wallet = msg.sender;
     token = _token;
+
   }
+
 
   //=======================
   // Functions
   //=======================
 
   // function for acquiring some tokens
-  // only possible in sale state
   function acquireTokens() public payable isSaleState {
 
     // verifications
@@ -61,54 +61,110 @@ contract Crowdsale is Ownable, State {
 
     // calculate token amount to be created
     uint256 tokens = weiAmount.mul(rate);
-
-    // update state
-    weiRaised = weiRaised.add(weiAmount);
+    uint256 possibleTokens = token.balanceOf(wallet);
+    uint256 amount = tokens >= possibleTokens ? possibleTokens : tokens;
 
     // safe transfer of tokens
-    token.safeTransferFrom(wallet, msg.sender, tokens);
+    token.manualTransfer(wallet, msg.sender, amount);
+
+    // in case of impossibility of buying the correspondent tokens
+    // give the extra ETH back
+    if (amount < tokens) {
+      weiAmount = (tokens-amount).div(rate);
+      msg.sender.transfer(weiAmount);
+    }
     
     // send event
-    TokenAcquisition(msg.sender, weiAmount, tokens);
+    TokenAcquisition(msg.sender, weiAmount, amount);
     
-    // transfer ETH to wallet
-    wallet.transfer(msg.value);
+    // transfer ETH to contract
+    address(this).transfer(msg.value);
     
   }
 
-  // function for cancel token acquisition
-  // only possible in sale state
-  function cancelAcquisition() public isSaleState {
+  // function for cancel some of the tokens acquired
+  function cancelAcquisition(uint256 _tokens) public isSaleOrCanceledState {
 
     // get number of tokens
-    uint256 tokens = token.balanceOf(msg.sender);
+    uint256 nTokens = token.balanceOf(msg.sender);
+
+    // validation
+    require(_tokens <= nTokens);
 
     // wei to refund
-    uint256 refundWei = tokens.div(rate);
+    uint256 refundWei = _tokens.div(rate);
 
     // safe transfer of tokens
-    token.safeTransferFrom(msg.sender, wallet, tokens);
+    token.manualTransfer(msg.sender, wallet, _tokens);
 
     // send event
-    TokenCancelation(msg.sender, refundWei, tokens);
+    TokenCancelation(msg.sender, refundWei, _tokens);
 
     // refund
     msg.sender.transfer(refundWei);
 
   }
 
+  // function for cancel all token acquired
+  function cancelAcquisition() public isSaleOrCanceledState {
+
+    // get number of tokens
+    uint256 tokens = token.balanceOf(msg.sender);
+
+    cancelAcquisition(tokens);
+
+  }
+
+  // raise funds to give'em to the proper student
+  function raiseFunds() public onlyOwner isActiveState {
+    
+    // transfer to the owner's wallet
+    wallet.transfer(address(this).balance);
+
+  }
+
+  // CAUTION:
+  // WE SHOULD APPLY TAXES HERE
+  function payback() public payable isActiveState {
+
+    address(this).transfer(msg.value);
+    
+  }
+
+
+  //=======================
+  // State Transitions
+  //=======================
+
+  // function call by the owner, to activate the crowdsale
+  function transitionToActive() public onlyOwner isSaleState {
+
+    // validation
+    require(token.balanceOf(msg.sender) == 0);
+
+    // set state
+    setState(StateEnum.ACTIVE);
+
+  }
+
+  // function call by the owner, to set the crowdsale to redeemable state
+  function transitionToRedeemable() public onlyOwner isActiveState {
+
+    // set state
+    setState(StateEnum.REDEEMABLE);
+
+  }
+
   // function call by the owner, to cancel the crowdsale
-  // only possible in sale state
   function cancelCrowdsale() public onlyOwner isSaleState {
 
     // validation
     require(ValidationLibrary.hasEnded(endTime));
 
-    // do some things
+    // set state
+    setState(StateEnum.CANCELED);
 
   }
-
-
 
 
   //=======================
@@ -117,7 +173,10 @@ contract Crowdsale is Ownable, State {
 
   // fallback function can be used to buy tokens
   receive() external payable {
+    
     // buyTokens(msg.sender);
+    acquireTokens();
+
   }
 
   //=======================

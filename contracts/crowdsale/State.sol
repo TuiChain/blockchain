@@ -12,14 +12,14 @@ contract State {
   StateEnum private state;
 
   // start and end timestamps where investments are allowed 
-  uint256 public startTime;
-  uint256 public endTime;
+  uint256 internal startTime;
+  uint256 internal endTime;
 
   //=======================
   // Constructor
   //=======================
 
-  constructor (uint256 _startTime, uint256 _endTime) public {
+  constructor (uint256 _startTime, uint256 _endTime) internal {
     state = StateEnum.SALE;
     startTime = _startTime;
     endTime = _endTime;
@@ -49,8 +49,17 @@ contract State {
     _;
   }
 
+  modifier isSaleOrCanceledState() {
+    require(state == StateEnum.CANCELED || state == StateEnum.SALE);
+    _;
+  }
+
   //=======================
   // Functions
   //=======================
+
+  function setState(StateEnum _state) internal {
+    state = _state;
+  }
 
 }

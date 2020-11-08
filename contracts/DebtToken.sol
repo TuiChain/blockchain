@@ -13,4 +13,10 @@ contract DebtToken is ERC20, AccessControl {
     _mint(msg.sender, supply);
   }
 
+  // CAUTION THIS REPRESENTS SOME RISK
+  // NEED A CLOSER LOOK
+  function manualTransfer(address sender, address recipient, uint256 amount) public {
+    _transfer(sender, recipient, amount);
+  }
+
 }
