@@ -1,0 +1,25 @@
+{
+  "name": "blockchain",
+  "version": "1.0.0",
+  "description": "Blockchain platform for TuiChain",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TuiChain/blockchain.git"
+  },
+  "author": "TuiChain",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TuiChain/blockchain/issues"
+  },
+  "homepage": "https://github.com/TuiChain/blockchain#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^3.2.0"
+  }
+}
