@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/TuiChain/blockchain#readme",
   "dependencies": {
-    "@openzeppelin/contracts": "^3.2.0"
+    "@openzeppelin/contracts": "^3.2.0",
+    "truffle": "^5.1.52"
   }
 }
