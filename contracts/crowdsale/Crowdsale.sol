@@ -81,9 +81,6 @@ contract Crowdsale is Ownable, State {
       weiAmount = (tokens-amount).div(rate);
       msg.sender.transfer(weiAmount);
     }
-    
-    // transfer ETH to contract
-    address(this).transfer(msg.value);
 
     // send event
     TokenAcquisition(msg.sender, weiAmount, amount);
@@ -139,9 +136,6 @@ contract Crowdsale is Ownable, State {
   // CAUTION:
   // WE SHOULD APPLY TAXES HERE
   function payback() public payable isActiveState {
-
-    // send payback to contract
-    address(this).transfer(msg.value);
 
     // event
     Payback(msg.sender, msg.value);
