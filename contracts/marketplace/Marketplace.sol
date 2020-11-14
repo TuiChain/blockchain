@@ -14,7 +14,7 @@ contract Marketplace {
     uint256 amount; //tokens that can be selled
     uint256 sellPrice; //sell price per token in wei
     uint256 minAmountToBuy; //minimum amount of tokens for someone to buy
-    address ownerAddress;
+    address payable ownerAddress;
     bool    exists;
   }
 
@@ -26,11 +26,11 @@ contract Marketplace {
     require(token.balanceOf(msg.sender) >= _amount);
 
     //Save sellPosition
-    sellPositions[msg.sender][token.address] = sellPosition(_amount, _sellPrice, _minAmountToBuy, msg.address, true);
+    sellPositions[msg.sender][address(token)] = sellPosition(_amount, _sellPrice, _minAmountToBuy, msg.sender, true);
   }
 
   function buyTokens(DebtToken token, address seller, uint256 amountToBuy) public payable {
-    sellPosition memory sellP = sellPositions[seller][token.address];
+    sellPosition memory sellP = sellPositions[seller][address(token)];
     
     //Check if the tokens are listed for selling and are enough
     require(sellP.exists && sellP.amount >= amountToBuy);
@@ -45,13 +45,13 @@ contract Marketplace {
     token.manualTransfer(seller, msg.sender, amountToBuy);
 
     //Transfer ETH to the seller
-    sellP.ownerAddress.sender.transfer(msg.value);
+    sellP.ownerAddress.transfer(msg.value);
   }
 
   //TODO: Save sell positions to database
 
   function endSellPostion(DebtToken token) public {
-    sellPosition memory sellP = sellPositions[msg.sender][token.address];
+    sellPosition memory sellP = sellPositions[msg.sender][address(token)];
 
     //Check if sell position exists
     require(sellP.exists);
