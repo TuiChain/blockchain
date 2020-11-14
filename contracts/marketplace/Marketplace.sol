@@ -48,7 +48,7 @@ contract Marketplace {
 
   //TODO: Save sell positions to database
 
-  function endSellPostion(DebtToken token) public view {
+  function endSellPostion(DebtToken token) public {
     //Delete sell position
     delete sellPositions[msg.sender][address(token)];
   }
