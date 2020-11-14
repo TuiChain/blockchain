@@ -49,11 +49,6 @@ contract Marketplace {
   //TODO: Save sell positions to database
 
   function endSellPostion(DebtToken token) public view {
-    sellPosition memory sellP = sellPositions[msg.sender][address(token)];
-
-    //Check if sell position exists
-    require(sellP.amount != 0);
-
     //Delete sell position
     delete sellPositions[msg.sender][address(token)];
   }
