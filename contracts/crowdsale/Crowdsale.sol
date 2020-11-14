@@ -137,9 +137,6 @@ contract Crowdsale is Ownable, State {
   // WE SHOULD APPLY TAXES HERE
   function payback() public payable isActiveState {
 
-    // probably, we want to check if the payback agrees with 
-    // an amount, specified in the ISA
-
     // event
     Payback(msg.sender, msg.value);
     
