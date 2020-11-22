@@ -46,7 +46,7 @@ contract("DebtToken", (accounts) => {
     assert(balance1.toNumber() === 1000);
   });
 
-  it("Should not transfer tokens", async () => {
+  it("Should not transfer tokens when the user has not enough balance", async () => {
     try {
       await debtToken.manualTransfer(accounts[1], accounts[2], 1001);
     } catch(exception) {
