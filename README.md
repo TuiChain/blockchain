@@ -5,8 +5,6 @@ Blockchain Repository for the TuiChain Application
 
 **contracts/**: Directory for Solidity contracts
 
-**migrations/**: Directory for scriptable deployment files
-
 **test/**: Directory for test files for testing your application and contracts
 
 **truffle-config.js**: Truffle configuration file
@@ -36,17 +34,6 @@ truffle compile
 To run migrations in a development environment:
 ```bash
 truffle develop
-```
-
-To run all migrations located within your project's migrations directory:
-```bash
-truffle migrate
-```
-If your migrations were previously run successfully, truffle migrate will start execution from the last migration that was run, running only newly created migrations.
-
-To run all your migrations from the beginning:
-```bash
-truffle migrate --reset
 ```
 
 ## Tests
