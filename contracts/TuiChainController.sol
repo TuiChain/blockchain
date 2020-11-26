@@ -25,7 +25,7 @@ contract TuiChainController is Ownable
     /* ---------------------------------------------------------------------- */
 
     /**
-     * The owner can later change the fee with setFee().
+     * The owner can later change the fee with setMarketFee().
      *
      * @param _dai The Dai contract
      * @param _marketFeeRecipient Address of EOA or contract to which market
@@ -43,8 +43,11 @@ contract TuiChainController is Ownable
 
         dai = _dai;
 
-        market = new TuiChainMarket(
-            _dai, _marketFeeRecipient, _marketFeeAttoDaiPerNanoDai);
+        market = new TuiChainMarket({
+            _dai: _dai,
+            _feeRecipient: _marketFeeRecipient,
+            _feeAttoDaiPerNanoDai: _marketFeeAttoDaiPerNanoDai
+            });
     }
 
     /* ---------------------------------------------------------------------- */
@@ -52,10 +55,10 @@ contract TuiChainController is Ownable
     /**
      * TODO: document
      */
-    function setMarketFee(
-        uint256 _marketFeeAttoDaiPerNanoDai) external onlyOwner
+    function setMarketFee(uint256 _marketFeeAttoDaiPerNanoDai)
+        external onlyOwner
     {
-        market.setFee(_marketFeeAttoDaiPerNanoDai);
+        market.setFee({ _feeAttoDaiPerNanoDai: _marketFeeAttoDaiPerNanoDai });
     }
 
     /**
@@ -70,17 +73,17 @@ contract TuiChainController is Ownable
         uint256 _requestedValueAttoDai
         ) external onlyOwner returns (TuiChainLoan _loan)
     {
-        TuiChainLoan loan = new TuiChainLoan(
-            dai,
-            _feeRecipient,
-            _loanRecipient,
-            _secondsToExpiration,
-            _fundingFeeAttoDaiPerDai,
-            _paymentFeeAttoDaiPerDai,
-            _requestedValueAttoDai
-            );
+        TuiChainLoan loan = new TuiChainLoan({
+            _dai: dai,
+            _feeRecipient: _feeRecipient,
+            _loanRecipient: _loanRecipient,
+            _secondsToExpiration: _secondsToExpiration,
+            _fundingFeeAttoDaiPerDai: _fundingFeeAttoDaiPerDai,
+            _paymentFeeAttoDaiPerDai: _paymentFeeAttoDaiPerDai,
+            _requestedValueAttoDai: _requestedValueAttoDai
+            });
 
-        market.allowToken(loan.getToken());
+        market.allowToken({ _token: loan.getToken() });
 
         loans[loan] = true;
 

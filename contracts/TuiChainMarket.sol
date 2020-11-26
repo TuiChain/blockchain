@@ -27,8 +27,12 @@ contract TuiChainMarket is Ownable
      * @param feeAttoDai The total fee paid by the buyer, in atto-Dai
      */
     event Transaction(
-        TuiChainToken token, address seller, address buyer,
-        uint256 amountTokens, uint256 priceAttoDaiPerToken, uint256 feeAttoDai
+        TuiChainToken token,
+        address seller,
+        address buyer,
+        uint256 amountTokens,
+        uint256 priceAttoDaiPerToken,
+        uint256 feeAttoDai
         );
 
     /* ---------------------------------------------------------------------- */
@@ -92,8 +96,8 @@ contract TuiChainMarket is Ownable
      * positive and a multiple of 10^9, i.e., represents a positive and whole
      * amount of nano-Dai, and return the given value converted to nano-Dai.
      */
-    function _attoDaiToPositiveWholeNanoDai(
-        uint256 _attoDai) private pure returns (uint256 _nanoDai)
+    function _attoDaiToPositiveWholeNanoDai(uint256 _attoDai)
+        private pure returns (uint256 _nanoDai)
     {
         require(_attoDai > 0 && _attoDai.mod(1e9) == 0);
 
@@ -132,8 +136,10 @@ contract TuiChainMarket is Ownable
      * A sell position by the sender for the given token must not already exist.
      */
     function addSellPosition(
-        TuiChainToken _token, uint256 _amountTokens,
-        uint256 _priceAttoDaiPerToken) external
+        TuiChainToken _token,
+        uint256 _amountTokens,
+        uint256 _priceAttoDaiPerToken
+        ) external
     {
         // checks
 
@@ -145,17 +151,22 @@ contract TuiChainMarket is Ownable
 
         require(_amountTokens > 0);
 
-        uint256 priceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai(
-            _priceAttoDaiPerToken);
+        uint256 priceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai({
+            _attoDai: _priceAttoDaiPerToken
+            });
 
         // effects
 
-        position.amountTokens               = _amountTokens;
+        position.amountTokens         = _amountTokens;
         position.priceNanoDaiPerToken = priceNanoDaiPerToken;
 
         // interactions
 
-        _token.safeTransferFrom(msg.sender, address(this), _amountTokens);
+        _token.safeTransferFrom({
+            from: msg.sender,
+            to: address(this),
+            value: _amountTokens
+            });
     }
 
     /**
@@ -177,7 +188,7 @@ contract TuiChainMarket is Ownable
 
         // interactions
 
-        _token.safeTransfer(msg.sender, amountTokens);
+        _token.safeTransfer({ to: msg.sender, value: amountTokens });
     }
 
     /**
@@ -190,7 +201,9 @@ contract TuiChainMarket is Ownable
      *     https://docs.google.com/document/d/1YLPtQxZu1UAvO9cZ1O2RPXBbT0mooh4DYKjA_jp-RLM
      */
     function increaseSellPositionAmount(
-        TuiChainToken _token, uint256 _increaseAmount) external
+        TuiChainToken _token,
+        uint256 _increaseAmount
+        ) external
     {
         // checks
 
@@ -207,7 +220,11 @@ contract TuiChainMarket is Ownable
 
         // interactions
 
-        _token.safeTransferFrom(msg.sender, address(this), _increaseAmount);
+        _token.safeTransferFrom({
+            from: msg.sender,
+            to: address(this),
+            value: _increaseAmount
+            });
     }
 
     /**
@@ -223,7 +240,9 @@ contract TuiChainMarket is Ownable
      *     https://docs.google.com/document/d/1YLPtQxZu1UAvO9cZ1O2RPXBbT0mooh4DYKjA_jp-RLM
      */
     function decreaseSellPositionAmount(
-        TuiChainToken _token, uint256 _decreaseAmount) external
+        TuiChainToken _token,
+        uint256 _decreaseAmount
+        ) external
     {
         // checks
 
@@ -244,14 +263,16 @@ contract TuiChainMarket is Ownable
 
         // interactions
 
-        _token.safeTransfer(msg.sender, _decreaseAmount);
+        _token.safeTransfer({ to: msg.sender, value: _decreaseAmount });
     }
 
     /**
      * Update the price of an existing sell position.
      */
     function updateSellPositionPrice(
-        TuiChainToken _token, uint256 _newPriceAttoDaiPerToken) external
+        TuiChainToken _token,
+        uint256 _newPriceAttoDaiPerToken
+        ) external
     {
         // checks
 
@@ -261,8 +282,9 @@ contract TuiChainMarket is Ownable
 
         require(position.amountTokens > 0, "sell position does not exist");
 
-        uint256 newPriceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai(
-            _newPriceAttoDaiPerToken);
+        uint256 newPriceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai({
+            _attoDai: _newPriceAttoDaiPerToken
+            });
 
         // effects
 
@@ -276,8 +298,11 @@ contract TuiChainMarket is Ownable
      * user expects, since the sell position can be altered at any time.
      */
     function buy(
-        TuiChainToken _token, address _seller,
-        uint256 _amountTokens, uint256 _priceAttoDaiPerToken) external
+        TuiChainToken _token,
+        address _seller,
+        uint256 _amountTokens,
+        uint256 _priceAttoDaiPerToken
+        ) external
     {
         // checks
 
@@ -287,8 +312,9 @@ contract TuiChainMarket is Ownable
 
         require(position.amountTokens > 0, "sell position does not exist");
 
-        uint256 priceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai(
-            _priceAttoDaiPerToken);
+        uint256 priceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai({
+            _attoDai: _priceAttoDaiPerToken
+            });
 
         require(position.amountTokens == _amountTokens);
         require(position.priceNanoDaiPerToken == priceNanoDaiPerToken);
@@ -300,18 +326,30 @@ contract TuiChainMarket is Ownable
         uint256 priceAttoDai = _priceAttoDaiPerToken.mul(_amountTokens);
         uint256 feeAttoDai   = feeAttoDaiPerNanoDai.mul(priceAttoDai.div(1e9));
 
-        emit Transaction(
-            _token, _seller, msg.sender,
-            _amountTokens, _priceAttoDaiPerToken, feeAttoDai
-            );
+        emit Transaction({
+            token: _token,
+            seller: _seller,
+            buyer: msg.sender,
+            amountTokens: _amountTokens,
+            priceAttoDaiPerToken: _priceAttoDaiPerToken,
+            feeAttoDai: feeAttoDai
+            });
 
         // interactions
 
-        dai.safeTransferFrom(msg.sender, _seller, priceAttoDai);
-        dai.safeTransferFrom(msg.sender, feeRecipient, feeAttoDai);
+        dai.safeTransferFrom({
+            from: msg.sender,
+            to: _seller,
+            value: priceAttoDai
+            });
 
-        _token.safeTransfer(msg.sender, _amountTokens);
+        dai.safeTransferFrom({
+            from: msg.sender,
+            to: feeRecipient,
+            value: feeAttoDai
+            });
 
+        _token.safeTransfer({ to: msg.sender, value: _amountTokens });
     }
 }
 
