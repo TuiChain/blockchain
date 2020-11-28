@@ -56,15 +56,6 @@ contract TuiChainLoan is Ownable
         );
 
     /**
-     * Emitted every time tokens are claimed.
-     *
-     * @param claimer The address of the account or contract that claimed the
-     *     tokens
-     * @param amountTokens The number of tokens that were claimed
-     */
-    event TokensClaimed(address claimer, uint256 amountTokens);
-
-    /**
      * Emitted every time a payment is made.
      *
      * @param payer The address of the account or contract that made the payment
@@ -114,9 +105,6 @@ contract TuiChainLoan is Ownable
     // is Active, and equals requestedValueDai when phase is Active or
     // Finalized.
     uint256 private fundedDai;
-
-    // How many tokens each address that funded the loan can still claim.
-    mapping(address => uint256) private unclaimedTokens;
 
     // How much Dai has been paid by the student (or anyone, really) so far.
     uint256 private paidDai;
@@ -310,7 +298,6 @@ contract TuiChainLoan is Ownable
         // effects
 
         fundedDai = fundedDai.add(valueDai);
-        unclaimedTokens[msg.sender] = unclaimedTokens[msg.sender].add(valueDai);
 
         emit FundsProvided({
             funder: msg.sender,
@@ -330,6 +317,8 @@ contract TuiChainLoan is Ownable
             to: address(this),
             value: _valueAttoDai.add(feeAttoDai)
             });
+
+        token.safeTransfer({ to: msg.sender, value: valueDai });
 
         if (fundedDai == requestedValueDai)
         {
@@ -371,13 +360,9 @@ contract TuiChainLoan is Ownable
             _attoDai: _valueAttoDai
             });
 
-        require(valueDai < unclaimedTokens[msg.sender]);
-
         // effects
 
         fundedDai = fundedDai.sub(valueDai);
-
-        unclaimedTokens[msg.sender] = unclaimedTokens[msg.sender].sub(valueDai);
 
         emit FundsWithdrawn({
             funder: msg.sender,
@@ -393,29 +378,12 @@ contract TuiChainLoan is Ownable
             to: msg.sender,
             value: _valueAttoDai.add(feeAttoDai)
             });
-    }
 
-    function claimTokens(uint256 _amountTokens) external
-    {
-        // checks
-
-        require(phase == Phase.Active || phase == Phase.Finalized);
-        require(_amountTokens > 0);
-        require(_amountTokens <= unclaimedTokens[msg.sender]);
-
-        // effects
-
-        unclaimedTokens[msg.sender] =
-            unclaimedTokens[msg.sender].sub(_amountTokens);
-
-        emit TokensClaimed({
-            claimer: msg.sender,
-            amountTokens: _amountTokens
+        token.safeTransferFrom({
+            from: msg.sender,
+            to: address(this),
+            value: valueDai
             });
-
-        // interactions
-
-        token.safeTransfer({ to: msg.sender, value: _amountTokens });
     }
 
     /**
