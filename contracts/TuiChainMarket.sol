@@ -294,8 +294,8 @@ contract TuiChainMarket is Ownable
     /**
      * Purchase tokens offered by a sell position.
      *
-     * The amount and price must be specified to ensure that they are what the
-     * user expects, since the sell position can be altered at any time.
+     * The price must be specified to ensure that it is what the user expects,
+     * since the actual sell position price can be updated at any time.
      */
     function buy(
         TuiChainToken _token,
@@ -307,6 +307,7 @@ contract TuiChainMarket is Ownable
         // checks
 
         require(allowedTokens[_token]);
+        require(_amountTokens > 0);
 
         SellPosition storage position = sellPositions[_token][_seller];
 
@@ -316,12 +317,15 @@ contract TuiChainMarket is Ownable
             _attoDai: _priceAttoDaiPerToken
             });
 
-        require(position.amountTokens == _amountTokens);
-        require(position.priceNanoDaiPerToken == priceNanoDaiPerToken);
+        require(_amountTokens <= position.amountTokens);
+        require(priceNanoDaiPerToken == position.priceNanoDaiPerToken);
 
         // effects
 
-        delete sellPositions[_token][_seller];
+        position.amountTokens = position.amountTokens.sub(_amountTokens);
+
+        if (position.amountTokens == 0)
+            position.priceNanoDaiPerToken = 0; // free up storage
 
         uint256 priceAttoDai = _priceAttoDaiPerToken.mul(_amountTokens);
         uint256 feeAttoDai   = feeAttoDaiPerNanoDai.mul(priceAttoDai.div(1e9));
