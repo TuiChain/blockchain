@@ -25,10 +25,10 @@ contract TuiChainToken is ERC20Burnable
         loan = _loan;
 
         // TODO: document
-        _setupDecimals(0);
+        _setupDecimals({ decimals_: 0 });
 
         // assign entire supply to loan contract
-        _mint(address(_loan), _totalSupply);
+        _mint({ account: address(_loan), amount: _totalSupply });
     }
 
     /* ---------------------------------------------------------------------- */
