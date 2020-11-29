@@ -3,6 +3,7 @@
 
 pragma solidity ^0.6.0;
 
+import "./TuiChainController.sol";
 import "./TuiChainToken.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -87,6 +88,9 @@ contract TuiChainLoan is Ownable
     // The Dai contract.
     IERC20 private immutable dai;
 
+    // The controller contract.
+    TuiChainController private immutable controller;
+
     address private immutable feeRecipient;
     address private immutable loanRecipient;
     uint256 private immutable expirationTime;
@@ -131,6 +135,7 @@ contract TuiChainLoan is Ownable
      */
     constructor(
         IERC20 _dai,
+        TuiChainController _controller,
         address _feeRecipient,
         address _loanRecipient,
         uint256 _secondsToExpiration,
@@ -140,6 +145,7 @@ contract TuiChainLoan is Ownable
         ) public
     {
         require(_dai != IERC20(0));
+        require(_controller != TuiChainController(0));
         require(_feeRecipient != address(0));
         require(_loanRecipient != address(0));
         require(_secondsToExpiration > 0);
@@ -148,7 +154,8 @@ contract TuiChainLoan is Ownable
             _attoDai: _requestedValueAttoDai
             });
 
-        dai = _dai;
+        dai        = _dai;
+        controller = _controller;
 
         feeRecipient            = _feeRecipient;
         loanRecipient           = _loanRecipient;
@@ -331,6 +338,8 @@ contract TuiChainLoan is Ownable
                 to: feeRecipient,
                 value: fundingFeeAttoDaiPerDai.mul(requestedValueDai)
                 });
+
+            controller.notifyLoanActivation();
         }
     }
 

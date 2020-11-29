@@ -107,11 +107,21 @@ contract TuiChainMarket is Ownable
     /* ---------------------------------------------------------------------- */
 
     // Add the given token to the set of allowed tokens.
-    function allowToken(TuiChainToken _token) external onlyOwner
+    // Does nothing if the token is already in the set of allowed tokens.
+    function addToken(TuiChainToken _token) external onlyOwner
     {
         require(_token != TuiChainToken(0));
 
         allowedTokens[_token] = true;
+    }
+
+    // Remove the given token to the set of allowed tokens.
+    // Does nothing if the token is not in the set of allowed tokens.
+    function removeToken(TuiChainToken _token) external onlyOwner
+    {
+        require(_token != TuiChainToken(0));
+
+        allowedTokens[_token] = false;
     }
 
     // Set the fee to the given value.
@@ -171,12 +181,14 @@ contract TuiChainMarket is Ownable
 
     /**
      * Remove an existing sell position.
+     *
+     * Note that this function does not check if the token is allowed, to enable
+     * seller to remove sell positions of tokens of loans that have been
+     * finalized.
      */
     function removeSellPosition(TuiChainToken _token) external
     {
         // checks
-
-        require(allowedTokens[_token]);
 
         uint256 amountTokens = sellPositions[_token][msg.sender].amountTokens;
 
