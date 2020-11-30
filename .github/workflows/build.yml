@@ -1,0 +1,100 @@
+# ---------------------------------------------------------------------------- #
+
+name: build  # the name is mostly to look good on the status badge
+on: [push, pull_request]
+
+jobs:
+
+  run-truffle-tests:
+
+    name: Run Truffle tests
+
+    runs-on: ubuntu-20.04
+
+    steps:
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./truffle
+
+      - name: Run tests
+        run: node node_modules/truffle/build/cli.bundled.js test
+        working-directory: ./truffle
+
+  install-python-package:
+
+    name: Install Python package
+
+    runs-on: ubuntu-20.04
+
+    steps:
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install package
+        run: pip3 install .
+
+  check-python-code-style:
+
+    name: Check Python code style
+
+    runs-on: ubuntu-20.04
+
+    steps:
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Install black
+        run: pip3 install --upgrade black
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run black
+        run: black --check setup.py tuichain
+
+  check-python-type-correctness:
+
+    name: Check Python type correctness
+
+    runs-on: ubuntu-20.04
+
+    steps:
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Install mypy
+        run: pip3 install --upgrade mypy
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run mypy
+        run: mypy
+
+# ---------------------------------------------------------------------------- #
