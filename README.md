@@ -1,66 +1,47 @@
-# Blockchain
-Blockchain Repository for the TuiChain Application
+<!-- ----------------------------------------------------------------------- -->
+
+# TuiChain: Blockchain
+
+Repository for the blockchain component of the TuiChain application.
 
 ## Structure
 
-**contracts/**: Directory for Solidity contracts
+The whole repo is a Python package.
+All Python code is under `tuichain/`.
 
-**migrations/**: Directory for scriptable deployment files
+Directory `truffle/` is a Truffle setup.
+Contracts are under `truffle/contracts/`.
+Mock contracts for tests are under `truffle/contracts/mocks/`.
+Actual JavaScript and Solidity tests are under `truffle/test/`.
 
-**test/**: Directory for test files for testing your application and contracts
+The Python setup uses the Truffle setup to compile the contracts and include the necessary results in the Python package installation.
+Thus to install this package you must have `npm` installed beforehand.
 
-**truffle-config.js**: Truffle configuration file
+## Using the Python layer
 
-## Startup
+Simply install using pip with local or remote path to repo, *e.g.*:
 
-If truffle not installed yet:
-```bash
-npm install -g truffle
-```
+- `pip install my-repos/blockchain`, or
+- `pip install https://github.com/TuiChain/blockchain/archive/main.zip`
 
-## Install
+Note: You can also give the Git URL to `pip install`, but using the zip archive as above usually installs much faster.
 
-Install the required dependencies:
-```bash
-npm install
-```
+## Development setup
 
-## Compile
+To develop contracts, first install truffle globally using `npm install -g truffle`.
+Then, when in directory `truffle/`, use:
 
-To compile the contracts within contracts folder, you have to be in the project root:
-```bash
-truffle compile
-```
+- `npm install` to install the Truffle setup's dependencies;
+- `truffle compile` to compile the contracts;
+- `truffle test` to run all tests;
+- `truffle test <path>` to run a specific test.
 
-## Deploy contracts
-To run migrations in a development environment:
-```bash
-truffle develop
-```
+To develop the Python layer, create a virtualenv and install the Python package in "editable" mode, *e.g.*:
 
-To run all migrations located within your project's migrations directory:
-```bash
-truffle migrate
-```
-If your migrations were previously run successfully, truffle migrate will start execution from the last migration that was run, running only newly created migrations.
+- `cd my-repos/blockchain`
+- `virtualenv env`
+- `cd env`
+- `source bin/activate`
+- `pip install -e ..`
 
-To run all your migrations from the beginning:
-```bash
-truffle migrate --reset
-```
-
-## Tests
-
-To run all tests, simply run:
-```bash
-truffle test
-```
-
-Alternatively, you can specify a path to a specific file you want to run, e.g.:
-```bash
-truffle test ./path/to/test/file.js
-```
-
-
-For more info visit [Truffle docs](https://www.trufflesuite.com/docs/truffle/overview).
-
+<!-- ----------------------------------------------------------------------- -->

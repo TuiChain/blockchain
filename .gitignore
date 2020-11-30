@@ -1,6 +1,19 @@
-# Folders
-node_modules/
-build/
+# ---------------------------------------------------------------------------- #
 
-# IDEs
+# python stuff
+*.egg-info
+__pycache__
+
+# auto-generated contract ABI file
+/tuichain/abi.json
+
+# npm and truffle stuff
+/truffle/node_modules
+/truffle/build
+
+# other things
+.idea
 .vscode
+.DS_Store
+
+# ---------------------------------------------------------------------------- #
