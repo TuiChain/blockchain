@@ -75,6 +75,7 @@ contract TuiChainController is Ownable
     {
         TuiChainLoan loan = new TuiChainLoan({
             _dai: dai,
+            _controller: this,
             _feeRecipient: _feeRecipient,
             _loanRecipient: _loanRecipient,
             _secondsToExpiration: _secondsToExpiration,
@@ -82,8 +83,6 @@ contract TuiChainController is Ownable
             _paymentFeeAttoDaiPerDai: _paymentFeeAttoDaiPerDai,
             _requestedValueAttoDai: _requestedValueAttoDai
             });
-
-        market.allowToken({ _token: loan.getToken() });
 
         loans[loan] = true;
 
@@ -108,6 +107,20 @@ contract TuiChainController is Ownable
         require(loans[_loan]);
 
         _loan.finalize();
+
+        market.removeToken({ _token: _loan.getToken() });
+    }
+
+    /**
+     * Invoked by loan to inform that it became active.
+     */
+    function notifyLoanActivation() external
+    {
+        TuiChainLoan loan = TuiChainLoan(msg.sender);
+
+        require(loans[loan]);
+
+        market.addToken({ _token: loan.getToken() });
     }
 
     /* ---------------------------------------------------------------------- */
