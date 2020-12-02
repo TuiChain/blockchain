@@ -2,7 +2,7 @@
 
 # TuiChain: Blockchain
 
-[![Build status](https://github.com/TuiChain/blockchain/workflows/build/badge.svg?branch=master)](https://github.com/TuiChain/blockchain/actions)
+[![Build status](https://github.com/TuiChain/blockchain/workflows/build/badge.svg?branch=main)](https://github.com/TuiChain/blockchain/actions)
 
 Repository for the blockchain component of the TuiChain application.
 
