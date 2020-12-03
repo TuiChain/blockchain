@@ -8,8 +8,9 @@ Repository for the blockchain component of the TuiChain application.
 
 ## Structure
 
-The whole repo is a Python package.
-All Python code is under `tuichain/`.
+The whole repo is a Python package named *tuichain-ethereum*.
+Python code is under `tuichain/`.
+Python tests are under `test/`.
 
 Directory `truffle/` is a Truffle setup.
 Contracts are under `truffle/contracts/`.
@@ -38,7 +39,8 @@ Then, when in directory `truffle/`, use:
 - `truffle test` to run all tests;
 - `truffle test <path>` to run a specific test.
 
-To develop the Python layer, create a virtualenv and install the Python package in "editable" mode, *e.g.*:
+To run the Python tests, install tox with `pip install tox` and run the `tox` command in the repo root.
+To be able to import the package from an interpreter for ad hoc testing, create a virtualenv and install the Python package in "editable" mode, *e.g.*:
 
 - `cd my-repos/blockchain`
 - `virtualenv env`

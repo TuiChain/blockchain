@@ -19,6 +19,7 @@ import typing as _t
 
 import eth_keys.datatypes as _eth_keys_datatypes
 import web3 as _web3
+import web3.contract as _web3_contract
 import web3.providers as _web3_providers
 
 # ---------------------------------------------------------------------------- #
@@ -59,19 +60,19 @@ class LoanState:
     """Information about the state of a loan."""
 
     @property
-    def loan_contract_address(self) -> _web3.eth.Address:
+    def loan_contract_address(self) -> _web3_contract.Address:
         """Address of the loan's management contract."""
 
     @property
-    def token_contract_address(self) -> _web3.eth.Address:
+    def token_contract_address(self) -> _web3_contract.Address:
         """Address of the loan's ERC-20 token contract."""
 
     @property
-    def fee_recipient_address(self) -> _web3.eth.Address:
+    def fee_recipient_address(self) -> _web3_contract.Address:
         """Address of EOA or contract to which fees are to be transferred."""
 
     @property
-    def loan_recipient_address(self) -> _web3.eth.Address:
+    def loan_recipient_address(self) -> _web3_contract.Address:
         """Address of EOA or contract to which the loan value is to be
         transferred."""
 
@@ -181,7 +182,7 @@ class Ethereum:
         self,
         provider: _web3_providers.BaseProvider,
         account: _web3.Account,
-        controller_contract_address: _web3.eth.Address,
+        controller_contract_address: _web3_contract.Address,
         *,
         required_confirmations: int = 12,
         confirmation_timeout: _dt.timedelta = _dt.timedelta(minutes=5),
@@ -213,7 +214,7 @@ class Ethereum:
     def create_loan(
         self,
         *,
-        loan_recipient_address: _web3.eth.Address,
+        loan_recipient_address: _web3_contract.Address,
         time_to_expiration: _dt.timedelta,
         funding_fee_atto_dai_per_dai: int,
         payment_fee_atto_dai_per_dai: int,
@@ -239,7 +240,7 @@ class Ethereum:
         # __account.address <-- address of master account
 
     def get_loan_state(
-        self, loan_contract_address: _web3.eth.Address
+        self, loan_contract_address: _web3_contract.Address
     ) -> LoanState:
         """
         Return information about the state of a loan.
@@ -252,7 +253,9 @@ class Ethereum:
         :raises ValueError: if no such loan exists
         """
 
-    def try_expire_loan(self, loan_contract_address: _web3.eth.Address) -> bool:
+    def try_expire_loan(
+        self, loan_contract_address: _web3_contract.Address
+    ) -> bool:
         """
         Expire a loan that is currently in the CROWDSALE phase and whose funding
         deadline has passed without having been fully funded.
@@ -278,7 +281,9 @@ class Ethereum:
         :raise LoanPhaseError: if loan phase is not CROWDSALE or EXPIRED
         """
 
-    def cancel_loan(self, loan_contract_address: _web3.eth.Address) -> None:
+    def cancel_loan(
+        self, loan_contract_address: _web3_contract.Address
+    ) -> None:
         """
         Cancel a loan that is currently in the FUNDING phase.
 
@@ -291,7 +296,9 @@ class Ethereum:
         :raise LoanPhaseError: if loan phase is not FUNDING
         """
 
-    def finalize_loan(self, loan_contract_address: _web3.eth.Address) -> None:
+    def finalize_loan(
+        self, loan_contract_address: _web3_contract.Address
+    ) -> None:
         """
         Finalize a loan that is currently in the ACTIVE phase.
 
