@@ -5,15 +5,35 @@ from __future__ import annotations
 import json
 import pathlib
 import setuptools
+import setuptools.command.build_py
 import setuptools.command.develop
-import setuptools.command.install
 import setuptools.command.sdist
 import subprocess
+import typing
 
 # ---------------------------------------------------------------------------- #
 
 
-def compile_contracts() -> None:
+class CustomBuildPyCommand(setuptools.command.build_py.build_py):
+    def run(self) -> None:
+        if pathlib.Path("truffle").exists():
+            generate_contract_module()
+        super().run()
+
+
+class CustomDevelopCommand(setuptools.command.develop.develop):
+    def run(self) -> None:
+        generate_contract_module()
+        super().run()
+
+
+class CustomSdistCommand(setuptools.command.sdist.sdist):
+    def run(self) -> None:
+        generate_contract_module()
+        super().run()
+
+
+def generate_contract_module() -> None:
 
     # install dependencies
 
@@ -27,35 +47,30 @@ def compile_contracts() -> None:
         check=True,
     )
 
-    # store contract ABIs as package data
+    # generate module
 
-    abi_dict = {}
+    with open("tuichain/_contracts.py", mode="w") as f:
 
-    for path in pathlib.Path("truffle/build/contracts").iterdir():
-        with path.open() as f:
-            abi_dict[path.stem] = json.load(f)["abi"]
+        f.write("import typing as _t\n")
 
-    with pathlib.Path("tuichain/abi.json").open(mode="w") as f:
-        json.dump(abi_dict, f)
-
-
-class CustomDevelopCommand(setuptools.command.develop.develop):
-    def run(self) -> None:
-        compile_contracts()
-        super().run()
+        add_contract(f, "TuiChainController", include_bytecode=True)
+        add_contract(f, "TuiChainLoan")
+        add_contract(f, "TuiChainMarket")
+        add_contract(f, "TuiChainToken")
 
 
-class CustomInstallCommand(setuptools.command.install.install):
-    def run(self) -> None:
-        if pathlib.Path("truffle").exists():
-            compile_contracts()
-        super().run()
+def add_contract(
+    stream: typing.TextIO, contract: str, *, include_bytecode: bool = False
+) -> None:
 
+    with open(f"truffle/build/contracts/{contract}.json") as f:
+        data = json.load(f)
 
-class CustomSdistCommand(setuptools.command.sdist.sdist):
-    def run(self) -> None:
-        compile_contracts()
-        super().run()
+    stream.write(f"class {contract}:\n")
+    stream.write(f"    ABI: _t.ClassVar[_t.List[_t.Any]] = {data['abi']!r}\n")
+
+    if include_bytecode:
+        stream.write(f"    BYTECODE: str = {data['bytecode']!r}\n")
 
 
 # ---------------------------------------------------------------------------- #
@@ -63,12 +78,12 @@ class CustomSdistCommand(setuptools.command.sdist.sdist):
 setuptools.setup(
     name="tuichain-ethereum",
     cmdclass={
+        "build_py": CustomBuildPyCommand,
         "develop": CustomDevelopCommand,
-        "install": CustomInstallCommand,
         "sdist": CustomSdistCommand,
     },
     packages=setuptools.find_packages(include=["tuichain*"]),
-    package_data={"tuichain": ["abi.json", "py.typed"]},  # as per PEP 561
+    package_data={"tuichain": ["py.typed"]},  # as per PEP 561
     python_requires="~=3.8",
     install_requires=["web3~=5.13"],
     extras_require={"test": ["web3[tester]~=5.13"]},

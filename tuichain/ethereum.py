@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import datetime as _dt
 import enum as _enum
-import importlib.resources as _importlib_resources
-import json as _json
 import typing as _t
 
 import eth_keys.datatypes as _eth_keys_datatypes
@@ -22,10 +20,7 @@ import web3 as _web3
 import web3.contract as _web3_contract
 import web3.providers as _web3_providers
 
-# ---------------------------------------------------------------------------- #
-
-with _importlib_resources.open_text(__package__, "abi.json") as f:
-    _ABI: _t.Dict[str, _t.Any] = _json.load(f)
+import tuichain._contracts as _tuichain_contracts
 
 # ---------------------------------------------------------------------------- #
 
