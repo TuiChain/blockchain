@@ -31,7 +31,14 @@ jobs:
 
   run-python-tests:
 
-    name: Run Python tests
+    strategy:
+      fail-fast: false
+      matrix:
+        python:
+          - [3, 8]
+          - [3, 9]
+
+    name: Run Python tests with Python ${{ join(matrix.python, '.') }}
 
     runs-on: ubuntu-20.04
 
@@ -43,17 +50,24 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: ${{ join(matrix.python, '.') }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v1
         with:
           node-version: 14
 
+      - name: Install Rust nightly  # required by some Python dependencies
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          default: true
+
       - name: Install tox
         run: pip3 install --upgrade tox
 
       - name: Run tests
-        run: tox -e py38
+        run: tox -e py${{ join(matrix.python, '') }}
 
 # ---------------------------------------------------------------------------- #

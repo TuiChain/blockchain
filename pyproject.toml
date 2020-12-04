@@ -11,7 +11,7 @@ target-version = [ "py38" ]
 
 legacy_tox_ini = """
 [tox]
-envlist = py38
+envlist = py38,py39
 
 [testenv]
 install_command =
