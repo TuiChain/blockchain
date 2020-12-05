@@ -1,19 +1,22 @@
 # ---------------------------------------------------------------------------- #
 
+# npm and truffle stuff
+/truffle/build
+/truffle/node_modules
+
 # python stuff
 *.egg-info
+.tox
+/build
+/dist
 __pycache__
 
 # auto-generated contract ABI file
 /tuichain/abi.json
 
-# npm and truffle stuff
-/truffle/node_modules
-/truffle/build
-
 # other things
+.DS_Store
 .idea
 .vscode
-.DS_Store
 
 # ---------------------------------------------------------------------------- #

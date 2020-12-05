@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import setuptools
-import setuptools.command.egg_info
+import setuptools.command.develop
+import setuptools.command.install
+import setuptools.command.sdist
 import subprocess
-
-from pathlib import Path
-from typing import Any, Dict, Iterable
 
 # ---------------------------------------------------------------------------- #
 
@@ -29,17 +29,30 @@ def compile_contracts() -> None:
 
     # store contract ABIs as package data
 
-    abi_dict: Dict[str, Any] = {}
+    abi_dict = {}
 
-    for path in Path(f"truffle/build/contracts").iterdir():
+    for path in pathlib.Path("truffle/build/contracts").iterdir():
         with path.open() as f:
             abi_dict[path.stem] = json.load(f)["abi"]
 
-    with Path(f"tuichain/abi.json").open(mode="w") as f:
+    with pathlib.Path("tuichain/abi.json").open(mode="w") as f:
         json.dump(abi_dict, f)
 
 
-class CustomEggInfoCommand(setuptools.command.egg_info.egg_info):
+class CustomDevelopCommand(setuptools.command.develop.develop):
+    def run(self) -> None:
+        compile_contracts()
+        super().run()
+
+
+class CustomInstallCommand(setuptools.command.install.install):
+    def run(self) -> None:
+        if pathlib.Path("truffle").exists():
+            compile_contracts()
+        super().run()
+
+
+class CustomSdistCommand(setuptools.command.sdist.sdist):
     def run(self) -> None:
         compile_contracts()
         super().run()
@@ -49,13 +62,18 @@ class CustomEggInfoCommand(setuptools.command.egg_info.egg_info):
 
 setuptools.setup(
     name="tuichain-ethereum",
-    cmdclass={"egg_info": CustomEggInfoCommand},
+    cmdclass={
+        "develop": CustomDevelopCommand,
+        "install": CustomInstallCommand,
+        "sdist": CustomSdistCommand,
+    },
     packages=setuptools.find_packages(include=["tuichain*"]),
-    package_data={"tuichain": ["abi.json", "py.typed"]},
+    package_data={"tuichain": ["abi.json", "py.typed"]},  # as per PEP 561
     python_requires="~=3.8",
     install_requires=["web3~=5.13"],
+    extras_require={"test": ["web3[tester]~=5.13"]},
     include_package_data=True,
-    zip_safe=False,
+    zip_safe=False,  # for compatibility with mypy
 )
 
 # ---------------------------------------------------------------------------- #
