@@ -14,16 +14,10 @@ legacy_tox_ini = """
 envlist = py38
 
 [testenv]
-setenv =
-    PYTHONDEVMODE = 1
 install_command =
     python -m pip install {opts} --use-feature=2020-resolver {packages}
 extras =
     test
-deps =
-    mypy
-    black
-    pytest
 commands =
     mypy
     black --check setup.py test tuichain
