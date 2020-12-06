@@ -86,7 +86,9 @@ setuptools.setup(
     package_data={"tuichain": ["py.typed"]},  # as per PEP 561
     python_requires="~=3.8",
     install_requires=["web3~=5.13"],
-    extras_require={"test": ["web3[tester]~=5.13"]},
+    extras_require={
+        "test": ["black", "mypy", "pytest", "tox", "web3[tester]~=5.13"]
+    },
     include_package_data=True,
     zip_safe=False,  # for compatibility with mypy
 )

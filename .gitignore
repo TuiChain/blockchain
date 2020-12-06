@@ -6,7 +6,12 @@
 
 # python stuff
 *.egg-info
+.env
+.mypy_cache
 .tox
+/.idea/dictionaries
+/.idea/shelf
+/.idea/workspace.xml
 /build
 /dist
 __pycache__
@@ -16,7 +21,6 @@ __pycache__
 
 # other things
 .DS_Store
-.idea
 .vscode
 
 # ---------------------------------------------------------------------------- #
