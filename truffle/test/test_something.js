@@ -15,9 +15,10 @@ contract("A sequence of tests", function(accounts) {
   });
 
   it("The first test of the sequence of tests", async function() {
+    /*
     console.log(
       await this.dai.balanceOf("0x0000000000000000000000000000000000000000")
-      );
+      );*/
   });
 
   it("And now the second and last test", async function() {
