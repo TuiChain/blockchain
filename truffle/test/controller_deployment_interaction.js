@@ -84,6 +84,8 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     }
 
+    return assert(false);
+
   });
 
   it("Change market fee to 20% and check it", async function () {
