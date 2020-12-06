@@ -1,2 +1,1 @@
-include tuichain/abi.json
 include tuichain/py.typed
