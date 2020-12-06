@@ -6,6 +6,9 @@ const TuiChainLoan = artifacts.require("TuiChainLoan");
 
 const DaiMock = artifacts.require("DaiMock");
 
+// Mocks an ENUM identical to the one in the TuiChainLoan
+const Phase = Object.freeze({"Funding":0, "Expired":1, "Canceled":2, "Active":3, "Finalized":4})
+
 /* -------------------------------------------------------------------------- */
 
 // Sequence of tests for the deployment and interaction with Controller Contract
@@ -176,13 +179,13 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     try {
 
-      loanObject._requestedValueAttoDai = 1.5*Math.pow(10,18);
+      loanObject._requestedValueAttoDai = BigInt(1.5 * (10 ** 18)); 
 
       await tuiChainController.createLoan(...Object.values(loanObject));
 
     } catch(e) {
       
-      return assert(e.message.includes('overflow'));
+      return assert(e.message.includes('VM Exception while processing transaction: revert'));
 
     }
 
@@ -264,13 +267,13 @@ contract("Controller Deployment and Interaction", function (accounts) {
     var events = await tuiChainLoan.getPastEvents('PhaseUpdated', {fromBlock: 0, toBlock: 'latest'});
 
 
-    assert(events[0].returnValues.newPhase == 3); // 3 is the ACTIVE phase in the loan contract enum
+    assert(events[0].returnValues.newPhase == Phase.Active);
     
     await tuiChainController.finalizeLoan(tuiChainLoan.address);
 
     events = await tuiChainLoan.getPastEvents('PhaseUpdated', {fromBlock: 0, toBlock: 'latest'});
 
-    return assert(events[1].returnValues.newPhase == 4); // 4 is the FINALIZED phase in the loan contract enum
+    return assert(events[1].returnValues.newPhase == Phase.Finalized);
 
   });
 
@@ -305,7 +308,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     const events = await tuiChainLoan.getPastEvents('PhaseUpdated', {fromBlock: 0, toBlock: 'latest'});
 
-    return assert(events[0].returnValues.newPhase == 2);
+    return assert(events[0].returnValues.newPhase == Phase.Canceled);
 
   });
 
