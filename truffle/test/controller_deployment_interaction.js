@@ -14,7 +14,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
 
   // market fee, is equivalent to 10% of a DAI
-  const marketFeeAttoDaiPerNanoDai = BigInt(Math.pow(10,8));
+  const marketFeeAttoDaiPerNanoDai = BigInt(10) ** BigInt(8);
 
   /* -------------------------------------------------------------------------- */
 
@@ -49,7 +49,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     // start every account with 1000 DAI
     accounts.forEach( account => {
-      daiMock.mint(account, BigInt(1000 * Math.pow(10,18)));
+      daiMock.mint(account, BigInt(1000) * (BigInt(10) ** BigInt(18)));
     });
   
   });
@@ -61,9 +61,9 @@ contract("Controller Deployment and Interaction", function (accounts) {
       _feeRecipient: accounts[0],
       _loanRecipient: accounts[1],
       _secondsToExpiration: 60, // 1 minute
-      _fundingFeeAttoDaiPerDai: BigInt(Math.pow(10,17)), // 10% fee
-      _paymentFeeAttoDaiPerDai: BigInt(Math.pow(10,17)), // 10% fee
-      _requestedValueAttoDai: BigInt(1000 * Math.pow(10,18)) // 1000 DAI
+      _fundingFeeAttoDaiPerDai: BigInt(10) ** BigInt(17), // 10% fee
+      _paymentFeeAttoDaiPerDai: BigInt(10) ** BigInt(17), // 10% fee
+      _requestedValueAttoDai: BigInt(1000) * (BigInt(10) ** BigInt(18)) // 1000 DAI
     };
 
   });
@@ -72,7 +72,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
   it("Fail to change market fee if not the owner", async function () {
 
-    const newFee = BigInt(2*Math.pow(10,8));
+    const newFee = BigInt(2) * (BigInt(10) ** BigInt(8));
     
     try {
 
@@ -90,7 +90,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
   it("Change market fee to 20% and check it", async function () {
 
-    const newFee = BigInt(2*Math.pow(10,8));
+    const newFee = BigInt(2) * (BigInt(10) ** BigInt(8));
     
     await tuiChainController.setMarketFee(newFee);
 
@@ -158,7 +158,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     try {
 
-      loanObject._requestedValueAttoDai = BigInt(Math.pow(10,17));
+      loanObject._requestedValueAttoDai = BigInt(10) ** BigInt(17);
 
       await tuiChainController.createLoan(...Object.values(loanObject));
 
@@ -255,8 +255,8 @@ contract("Controller Deployment and Interaction", function (accounts) {
     // 10 accounts giving 100 DAI each
     for (let index = 0; index < accounts.length; index++) {
       
-      await daiMock.increaseAllowance(tuiChainLoan.address, BigInt(200* Math.pow(10,18)), {from: accounts[index]});
-      await tuiChainLoan.provideFunds(BigInt(100 * Math.pow(10,18)), {from: accounts[index]});  
+      await daiMock.increaseAllowance(tuiChainLoan.address, BigInt(200) * (BigInt(10) ** BigInt(18)), {from: accounts[index]});
+      await tuiChainLoan.provideFunds(BigInt(100) * (BigInt(10) ** BigInt(18)), {from: accounts[index]});  
       
     }
 
