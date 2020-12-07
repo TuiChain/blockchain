@@ -6,6 +6,11 @@ const TuiChainLoan = artifacts.require("TuiChainLoan");
 
 const DaiMock = artifacts.require("DaiMock");
 
+const {
+  constants,    // Common constants, like the zero address and largest integers
+  expectRevert, // Assertions for transactions that should fail
+} = require('@openzeppelin/test-helpers');
+
 // Mocks an ENUM identical to the one in the TuiChainLoan
 const Phase = Object.freeze({"Funding":0, "Expired":1, "Canceled":2, "Active":3, "Finalized":4})
 
@@ -94,7 +99,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
   it("Change market fee to 20% and check it", async function () {
 
     const newFee = BigInt(2) * (BigInt(10) ** BigInt(8));
-    
+
     await tuiChainController.setMarketFee(newFee);
 
     return assert((await tuiChainMarket.getFee()).toNumber() == newFee);
@@ -105,37 +110,21 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
   it("Fail to create loan with 0 address in _feeRecipient", async function () {
 
-    try {
+    loanObject._feeRecipient = constants.ZERO_ADDRESS;
 
-      loanObject._feeRecipient = 0x0000000000000000000000000000000000000000;
-
-      await tuiChainController.createLoan(...Object.values(loanObject));
-
-    } catch(e) {
-      
-      return assert(e.message.includes('_feeRecipient'));
-
-    }
-
-    return assert(false);
+    await expectRevert.unspecified(
+      tuiChainController.createLoan(...Object.values(loanObject))
+    );
 
   });
 
   it("Fail to create loan with 0 address in _loanRecipient", async function () {
 
-    try {
+    loanObject._loanRecipient = constants.ZERO_ADDRESS;
 
-      loanObject._loanRecipient = 0x0000000000000000000000000000000000000000;
-
-      await tuiChainController.createLoan(...Object.values(loanObject));
-
-    } catch(e) {
-      
-      return assert(e.message.includes('_loanRecipient'));
-
-    }
-
-    return assert(false);
+    await expectRevert.unspecified(
+      tuiChainController.createLoan(...Object.values(loanObject))
+    );
 
   });
 
@@ -159,37 +148,21 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
   it("Fail to create loan with less than a unit of DAI", async function () {
 
-    try {
+    loanObject._requestedValueAttoDai = BigInt(10) ** BigInt(17);
 
-      loanObject._requestedValueAttoDai = BigInt(10) ** BigInt(17);
-
-      await tuiChainController.createLoan(...Object.values(loanObject));
-
-    } catch(e) {
-      
-      return assert(e.message.includes('VM Exception while processing transaction: revert'));
-
-    }
-
-    return assert(false);
+    await expectRevert.unspecified(
+      tuiChainController.createLoan(...Object.values(loanObject))
+    );
 
   });
 
   it("Fail to create loan without a multiple integer of a unit of DAI", async function () {
 
-    try {
+    loanObject._requestedValueAttoDai = BigInt(1.5 * (10 ** 18)); 
 
-      loanObject._requestedValueAttoDai = BigInt(1.5 * (10 ** 18)); 
-
-      await tuiChainController.createLoan(...Object.values(loanObject));
-
-    } catch(e) {
-      
-      return assert(e.message.includes('VM Exception while processing transaction: revert'));
-
-    }
-
-    return assert(false);
+    await expectRevert.unspecified(
+      tuiChainController.createLoan(...Object.values(loanObject))
+    );
 
   });
 
@@ -213,7 +186,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     tuiChainLoan = await TuiChainLoan.at(transaction.logs[0].address);
 
-    return assert((await tuiChainLoan.getToken) != 0x0000000000000000000000000000000000000000);
+    return assert((await tuiChainLoan.getToken) != constants.ZERO_ADDRESS);
 
   });
 
@@ -237,19 +210,11 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
   it("Fail to finalize loan before it turns Active", async function () {
 
-    try {
+    assert((await tuiChainLoan.checkExpiration.call()) == false);
 
-      assert((await tuiChainLoan.checkExpiration.call()) == false);
-
-      await tuiChainController.finalizeLoan(tuiChainLoan.address);
-
-      return assert(false);
-
-    } catch(e) {
-
-      return assert(true);
-
-    }
+    await expectRevert.unspecified(
+      tuiChainController.finalizeLoan(tuiChainLoan.address)
+    );
 
   });
 
@@ -265,7 +230,6 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     // check that loan is ACTIVE 
     var events = await tuiChainLoan.getPastEvents('PhaseUpdated', {fromBlock: 0, toBlock: 'latest'});
-
 
     assert(events[0].returnValues.newPhase == Phase.Active);
     
@@ -316,17 +280,9 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
   it("Fail to notify loan activation if it's not a loan", async function () {
 
-    try {
-
-      await tuiChainController.notifyLoanActivation();
-    
-    } catch(e) {
-
-      return assert(e.message.includes('VM Exception while processing transaction: revert'));
-
-    }
-
-    return assert(false);
+    await expectRevert.unspecified(
+      tuiChainController.notifyLoanActivation()
+    );
 
   }); 
   
