@@ -153,7 +153,7 @@ contract TuiChainMarket is Ownable
     {
         // checks
 
-        require(allowedTokens[_token]);
+        require(allowedTokens[_token], "Token not allowd in the market");
 
         SellPosition storage position = sellPositions[_token][msg.sender];
 
@@ -264,7 +264,7 @@ contract TuiChainMarket is Ownable
         SellPosition storage position = sellPositions[_token][msg.sender];
 
         require(position.amountTokens > 0, "sell position does not exist");
-        require(_decreaseAmount <= position.amountTokens);
+        require(_decreaseAmount <= position.amountTokens, "decrease amount greater than current amount");
 
         // effects
 
@@ -329,8 +329,8 @@ contract TuiChainMarket is Ownable
             _attoDai: _priceAttoDaiPerToken
             });
 
-        require(_amountTokens <= position.amountTokens);
-        require(priceNanoDaiPerToken == position.priceNanoDaiPerToken);
+        require(_amountTokens <= position.amountTokens, "amount of tokens to buy greater than available");
+        require(priceNanoDaiPerToken == position.priceNanoDaiPerToken, "buy price different than sell price");
 
         // effects
 
