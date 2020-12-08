@@ -159,6 +159,8 @@ contract TuiChainMarket is Ownable
 
         require(position.amountTokens == 0, "sell position already exists");
 
+        require(_amountTokens > 0);
+
         uint256 priceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai({
             _attoDai: _priceAttoDaiPerToken
             });
@@ -218,6 +220,7 @@ contract TuiChainMarket is Ownable
         // checks
 
         require(allowedTokens[_token]);
+        require(_increaseAmount > 0);
 
         SellPosition storage position = sellPositions[_token][msg.sender];
 
@@ -256,6 +259,7 @@ contract TuiChainMarket is Ownable
         // checks
 
         require(allowedTokens[_token]);
+        require(_decreaseAmount > 0);
 
         SellPosition storage position = sellPositions[_token][msg.sender];
 
@@ -315,6 +319,7 @@ contract TuiChainMarket is Ownable
         // checks
 
         require(allowedTokens[_token]);
+        require(_amountTokens > 0);
 
         SellPosition storage position = sellPositions[_token][_seller];
 
