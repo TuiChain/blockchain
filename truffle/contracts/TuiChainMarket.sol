@@ -93,8 +93,12 @@ contract TuiChainMarket is Ownable
         uint256 _feeAttoDaiPerNanoDai
         ) public
     {
-        require(_dai != IERC20(0));
-        require(_feeRecipient != address(0));
+        require(_dai != IERC20(0), "_dai is the zero address");
+
+        require(
+            _feeRecipient != address(0),
+            "_feeRecipient is the zero address"
+            );
 
         dai = _dai;
 
@@ -115,7 +119,10 @@ contract TuiChainMarket is Ownable
     function _attoDaiToPositiveWholeNanoDai(uint256 _attoDai)
         private pure returns (uint256 _nanoDai)
     {
-        require(_attoDai > 0 && _attoDai.mod(1e9) == 0);
+        require(
+            _attoDai > 0 && _attoDai.mod(1e9) == 0,
+            "not a positive multiple of 1 nano-Dai"
+            );
 
         return _attoDai.div(1e9);
     }
@@ -133,7 +140,7 @@ contract TuiChainMarket is Ownable
      */
     function addToken(TuiChainToken _token) external onlyOwner
     {
-        require(_token != TuiChainToken(0));
+        require(_token != TuiChainToken(0), "_token is the zero address");
 
         tokenIsAllowed[_token] = true;
     }
@@ -149,7 +156,7 @@ contract TuiChainMarket is Ownable
      */
     function removeToken(TuiChainToken _token) external onlyOwner
     {
-        require(_token != TuiChainToken(0));
+        require(_token != TuiChainToken(0), "_token is the zero address");
 
         tokenIsAllowed[_token] = false;
     }
@@ -259,14 +266,14 @@ contract TuiChainMarket is Ownable
     {
         // checks
 
-        require(tokenIsAllowed[_token], "Token not allowd in the market");
+        require(tokenIsAllowed[_token], "_token not allowed by the market");
 
         require(
             !sellPositions.exists({ _token: _token, _seller: msg.sender }),
             "sell position already exists"
             );
 
-        require(_amountTokens > 0);
+        require(_amountTokens > 0, "_amountTokens is zero");
 
         uint256 priceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai({
             _attoDai: _priceAttoDaiPerToken
@@ -343,8 +350,8 @@ contract TuiChainMarket is Ownable
     {
         // checks
 
-        require(tokenIsAllowed[_token]);
-        require(_increaseAmount > 0);
+        require(tokenIsAllowed[_token], "_token not allowed by the market");
+        require(_increaseAmount > 0, "_increaseAmount is zero");
 
         require(
             sellPositions.exists({ _token: _token, _seller: msg.sender }),
@@ -390,8 +397,8 @@ contract TuiChainMarket is Ownable
     {
         // checks
 
-        require(tokenIsAllowed[_token]);
-        require(_decreaseAmount > 0);
+        require(tokenIsAllowed[_token], "_token not allowed by the market");
+        require(_decreaseAmount > 0, "_decreaseAmount is zero");
 
         require(
             sellPositions.exists({ _token: _token, _seller: msg.sender }),
@@ -401,7 +408,10 @@ contract TuiChainMarket is Ownable
         TuiChainMarketLib.SellPosition storage position =
             sellPositions.get({ _token: _token, _seller: msg.sender });
 
-        require(_decreaseAmount <= position.amountTokens, "decrease amount greater than current amount");
+        require(
+            _decreaseAmount <= position.amountTokens,
+            "_decreaseAmount exceeds amount for sale"
+            );
 
         // effects
 
@@ -430,7 +440,7 @@ contract TuiChainMarket is Ownable
     {
         // checks
 
-        require(tokenIsAllowed[_token]);
+        require(tokenIsAllowed[_token], "_token not allowed by the market");
 
         require(
             sellPositions.exists({ _token: _token, _seller: msg.sender }),
@@ -476,8 +486,8 @@ contract TuiChainMarket is Ownable
     {
         // checks
 
-        require(tokenIsAllowed[_token]);
-        require(_amountTokens > 0);
+        require(tokenIsAllowed[_token], "_token not allowed by the market");
+        require(_amountTokens > 0, "_amountTokens is zero");
 
         require(
             sellPositions.exists({ _token: _token, _seller: _seller }),
@@ -491,10 +501,20 @@ contract TuiChainMarket is Ownable
         TuiChainMarketLib.SellPosition storage position =
             sellPositions.get({ _token: _token, _seller: _seller });
 
-        require(_amountTokens <= position.amountTokens, "amount of tokens to buy greater than available");
-        require(priceNanoDaiPerToken == position.priceNanoDaiPerToken, "buy price different than sell price");
+        require(
+            _amountTokens <= position.amountTokens,
+            "_amountTokens exceeds amount for sale"
+            );
 
-        require(_feeAttoDaiPerNanoDai == feeAttoDaiPerNanoDai);
+        require(
+            priceNanoDaiPerToken == position.priceNanoDaiPerToken,
+            "_priceAttoDaiPerToken does not match the current price"
+            );
+
+        require(
+            _feeAttoDaiPerNanoDai == feeAttoDaiPerNanoDai,
+            "_feeAttoDaiPerNanoDai does not match the current fee"
+            );
 
         // effects
 

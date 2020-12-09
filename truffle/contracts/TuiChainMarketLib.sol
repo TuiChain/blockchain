@@ -130,7 +130,7 @@ library TuiChainMarketLib
         uint256 _priceNanoDaiPerToken
         ) internal
     {
-        require(_self.indices[_token][_seller] == 0);
+        require(_self.indices[_token][_seller] == 0, "sell position exists");
 
         // add position to array of all positions
 
