@@ -13,19 +13,40 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 /* -------------------------------------------------------------------------- */
 
+/** Manages the entire life cycle of a loan. */
 contract TuiChainLoan is Ownable
 {
+    using SafeERC20 for IERC20;
+    using SafeERC20 for TuiChainToken;
+    using SafeMath for uint256;
+
+    /* ---------------------------------------------------------------------- */
+
+    /**
+     * Phases of a loan's life cycle.
+     *
+     * @param Funding Loan has not yet been fully funded, lenders may deposit
+     *     Dai
+     * @param Expired Loan funding did not reach requested value prior to the
+     *     deadline, lenders may retrieve deposited Dai
+     * @param Canceled Loan was canceled prior to be fully funded, lenders may
+     *     retrieve deposited Dai
+     * @param Active Loan was fully funded and tokens were distributed to
+     *     lenders, student is in debt and further payments may occur
+     * @param Finalized Student is exempt from any further payments, token
+     *     owners may redeem them for Dai
+     */
     enum Phase { Funding, Expired, Canceled, Active, Finalized }
 
     /**
-     * Emitted every time the phase is updated.
+     * Emitted whenever the loan's phase is updated.
      *
-     * @param newPhase The value to which the phase changed
+     * @param newPhase The new phase
      */
     event PhaseUpdated(Phase newPhase);
 
     /**
-     * Emitted every time funds are provided.
+     * Emitted whenever funds are provided.
      *
      * @param funder The address of the account or contract that provided the
      *     funds
@@ -41,7 +62,7 @@ contract TuiChainLoan is Ownable
         );
 
     /**
-     * Emitted every time funds are withdrawn.
+     * Emitted whenever funds are withdrawn.
      *
      * @param funder The address of the account or contract that withdrew the
      *     funds
@@ -57,7 +78,7 @@ contract TuiChainLoan is Ownable
         );
 
     /**
-     * Emitted every time a payment is made.
+     * Emitted whenever a payment is made.
      *
      * @param payer The address of the account or contract that made the payment
      * @param paymentAttoDai The payment's value (excluding fees), in atto-Dai
@@ -71,7 +92,7 @@ contract TuiChainLoan is Ownable
         );
 
     /**
-     * Emitted every time tokens are redeemed.
+     * Emitted whenever tokens are redeemed.
      *
      * @param redeemer The address of the account or contract that redeemed the
      *     tokens
@@ -81,57 +102,75 @@ contract TuiChainLoan is Ownable
 
     /* ---------------------------------------------------------------------- */
 
-    using SafeERC20 for IERC20;
-    using SafeERC20 for TuiChainToken;
-    using SafeMath for uint256;
+    /** The Dai contract. */
+    IERC20 public immutable dai;
 
-    // The Dai contract.
-    IERC20 private immutable dai;
+    /** The controller contract. */
+    TuiChainController public immutable controller;
 
-    // The controller contract.
-    TuiChainController private immutable controller;
+    /** Address of account or contract to which fees are to be transferred. */
+    address public immutable feeRecipient;
 
-    address private immutable feeRecipient;
-    address private immutable loanRecipient;
-    uint256 private immutable expirationTime;
-    uint256 private immutable fundingFeeAttoDaiPerDai;
-    uint256 private immutable paymentFeeAttoDaiPerDai;
-    uint256 private immutable requestedValueDai;
+    /**
+     * Address of account or contract to which the loan value is to be
+     * transferred.
+     */
+    address public immutable loanRecipient;
 
-    // The ERC-20 contract implementing the tokens for the loan. Only valid if
-    // phase is Active or Finalized.
-    TuiChainToken private immutable token;
+    /** Timestamp at which the loan was created. */
+    uint256 public immutable creationTime;
 
-    // The current phase of the loan.
-    Phase private phase;
+    /** Timestamp at which the loan's Funding phase is set to expire. */
+    uint256 public immutable expirationTime;
 
-    // How much Dai has been funded. This may increase and decrease while phase
-    // is Active, and equals requestedValueDai when phase is Active or
-    // Finalized.
-    uint256 private fundedDai;
+    /** Funding fee, in atto-Dai per Dai. */
+    uint256 public immutable fundingFeeAttoDaiPerDai;
 
-    // How much Dai has been paid by the student (or anyone, really) so far.
-    uint256 private paidDai;
+    /** Payment fee, in atto-Dai per Dai. */
+    uint256 public immutable paymentFeeAttoDaiPerDai;
 
-    // How much atto-Dai a token can be redeemed for. This is zero is every
-    // phase but Finalized.
-    uint256 private attoDaiPerToken;
+    /** Requested loan value, in atto-Dai. */
+    uint256 public immutable requestedValueDai;
+
+    /** The ERC-20 contract implementing the loan's token. */
+    TuiChainToken public immutable token;
+
+    /** The current phase of the loan. */
+    Phase public phase;
+
+    /**
+     * How much Dai has been funded.
+     *
+     * This may increase and decrease while in phase Funding, and equals
+     * requestedValueDai when in phase Active or Finalized.
+     */
+    uint256 public fundedDai;
+
+    /** How much Dai has been paid by the student (or anyone, really) so far. */
+    uint256 public paidDai;
+
+    /**
+     * How much atto-Dai a token can be redeemed for.
+     *
+     * This is zero is every phase but Finalized.
+     */
+    uint256 public attoDaiPerToken;
 
     /* ---------------------------------------------------------------------- */
 
     /**
-     * Note that the deployer is automatically assigned as the owner.
+     * Construct a TuiChainLoan.
      *
      * @param _dai The Dai contract
-     * @param _feeRecipient Address of EOA or contract to which fees are to be
-     *     transferred
-     * @param _loanRecipient Address of EOA or contract to which the loan value
-     *     is to be transferred
+     * @param _feeRecipient Address of account or contract to which fees are to
+     *     be transferred
+     * @param _loanRecipient Address of account or contract to which the loan
+     *     value is to be transferred
      * @param _secondsToExpiration Maximum amount of time in seconds for the
      *     loan to be fully funded, after which it becomes expired
      * @param _fundingFeeAttoDaiPerDai Funding fee, in atto-Dai per Dai
      * @param _paymentFeeAttoDaiPerDai Payment fee, in atto-Dai per Dai
-     * @param _requestedValueAttoDai Total requested loan value, in atto-Dai
+     * @param _requestedValueAttoDai Requested loan value, in atto-Dai
      */
     constructor(
         IERC20 _dai,
@@ -154,24 +193,25 @@ contract TuiChainLoan is Ownable
             _attoDai: _requestedValueAttoDai
             });
 
-        dai        = _dai;
+        dai = _dai;
         controller = _controller;
 
-        feeRecipient            = _feeRecipient;
-        loanRecipient           = _loanRecipient;
-        expirationTime          = block.timestamp.add(_secondsToExpiration);
+        feeRecipient = _feeRecipient;
+        loanRecipient = _loanRecipient;
+        creationTime = block.timestamp;
+        expirationTime = block.timestamp.add(_secondsToExpiration);
         fundingFeeAttoDaiPerDai = _fundingFeeAttoDaiPerDai;
         paymentFeeAttoDaiPerDai = _paymentFeeAttoDaiPerDai;
-        requestedValueDai       = _requestedValueDai;
+        requestedValueDai = _requestedValueDai;
 
         token = new TuiChainToken({
             _loan: this,
             _totalSupply: _requestedValueDai
             });
 
-        phase           = Phase.Funding;
-        fundedDai       = 0;
-        paidDai         = 0;
+        phase = Phase.Funding;
+        fundedDai = 0;
+        paidDai = 0;
         attoDaiPerToken = 0;
     }
 
@@ -179,8 +219,11 @@ contract TuiChainLoan is Ownable
 
     /**
      * Ensure that the given value, which is expected to be in atto-Dai, is
-     * positive and a multiple of 10^18, i.e., represents a positive and whole
-     * amount of Dai, and return the given value converted to Dai.
+     * positive and a multiple of 10^18, i.e., represents a positive multiple of
+     * 1 Dai, and return the given value converted to Dai.
+     *
+     * @param _attoDai The input value, in atto-Dai
+     * @return _dai The output value, in Dai
      */
     function _attoDaiToPositiveWholeDai(uint256 _attoDai)
         private pure returns (uint256 _dai)
@@ -190,6 +233,11 @@ contract TuiChainLoan is Ownable
         return _attoDai.div(1e18);
     }
 
+    /**
+     * Set the phase to the given value.
+     *
+     * @param _newPhase The new phase
+     */
     function _updatePhase(Phase _newPhase) private
     {
         assert(phase != _newPhase);
@@ -199,6 +247,7 @@ contract TuiChainLoan is Ownable
         emit PhaseUpdated({ newPhase: _newPhase });
     }
 
+    /** If applicable, expire the loan. */
     function _tryExpire() private
     {
         if (phase == Phase.Funding && block.timestamp >= expirationTime)
@@ -210,12 +259,9 @@ contract TuiChainLoan is Ownable
     /**
      * Cancel the loan.
      *
+     * Fails if not in phase Funding.
+     *
      * Only the owner can invoke this function.
-     *
-     * This also checks if the loan has expired beforehand.
-     *
-     * Fails if current phase is not Funding or if the invocation causes the
-     * contract to expire.
      */
     function cancel() external onlyOwner
     {
@@ -223,7 +269,7 @@ contract TuiChainLoan is Ownable
 
         // checks
 
-        require(phase == Phase.Funding);
+        require(phase == Phase.Funding, "wrong phase");
 
         // effects
 
@@ -233,13 +279,15 @@ contract TuiChainLoan is Ownable
     /**
      * Finalize the loan.
      *
-     * Phase must be Active and becomes Finalized.
+     * Fails if not in phase Active.
+     *
+     * Only the owner can invoke this function.
      */
     function finalize() external onlyOwner
     {
         // checks
 
-        require(phase == Phase.Active);
+        require(phase == Phase.Active, "wrong phase");
 
         // effects
 
@@ -251,42 +299,38 @@ contract TuiChainLoan is Ownable
     /* ---------------------------------------------------------------------- */
 
     /**
-     * Return the ERC-20 contract implementing the loan's tokens.
-     *
-     * This is always valid, but note that this loan contract always holds the
-     * entire token supply if Phase is Funding, Expired, or Canceled.
-     */
-    function getToken() public view returns (TuiChainToken _token)
-    {
-        return token;
-    }
-
-    /**
      * Expire the loan if the funding deadline has passed.
      *
-     * Fails if current phase is not Funding or Expired.
+     * Fails if not in phase Funding or Expired.
      *
      * @return _expired true if the loan becomes or already was expired, false
      *     otherwise
      */
-    function checkExpiration() public returns (bool _expired)
+    function checkExpiration() external returns (bool _expired)
     {
         _tryExpire();
 
-        require(phase == Phase.Funding || phase == Phase.Expired);
+        require(
+            phase == Phase.Funding || phase == Phase.Expired,
+            "wrong phase"
+            );
 
         return phase == Phase.Expired;
     }
 
     /**
-     * Deposit some Dai to fund the loan.
+     * Deposit some Dai to fund the loan, receiving the corresponding amount of
+     * tokens in return.
      *
      * Fees are added to _valueAttoDai. The actual transferred value, in
      * atto-Dai, is given by:
      *
      *     _valueAttoDai + fundingFeeAttoDaiPerDai * (_valueAttoDai / 1e18)
      *
-     * @param _valueAttoDai Amount of funds to provide (before fees) in atto-Dai
+     * Fails if not in phase Funding.
+     *
+     * @param _valueAttoDai Amount of funds to provide (excluding fees) in
+     *     atto-Dai
      */
     function provideFunds(uint256 _valueAttoDai) external
     {
@@ -294,7 +338,7 @@ contract TuiChainLoan is Ownable
 
         // checks
 
-        require(phase == Phase.Funding);
+        require(phase == Phase.Funding, "wrong phase");
 
         uint256 valueDai = _attoDaiToPositiveWholeDai({
             _attoDai: _valueAttoDai
@@ -344,14 +388,17 @@ contract TuiChainLoan is Ownable
     }
 
     /**
-     * Withdraw some previously deposited Dai.
+     * Withdraw some previously deposited Dai, giving back the corresponding
+     * amount of tokens.
      *
      * Fees are added to _valueAttoDai. The actual transferred value, in
      * atto-Dai, is given by:
      *
      *     _valueAttoDai + fundingFeeAttoDaiPerDai * (_valueAttoDai / 1e18)
      *
-     * @param _valueAttoDai Amount of funds to withdraw (before fees) in
+     * Fails if not in phase Funding, Expired, or Canceled.
+     *
+     * @param _valueAttoDai Amount of funds to withdraw (excluding fees) in
      *     atto-Dai
      */
     function withdrawFunds(uint256 _valueAttoDai) external
@@ -362,7 +409,8 @@ contract TuiChainLoan is Ownable
 
         require(
             phase == Phase.Funding || phase == Phase.Expired
-            || phase == Phase.Canceled
+                || phase == Phase.Canceled,
+            "wrong phase"
             );
 
         uint256 valueDai = _attoDaiToPositiveWholeDai({
@@ -396,13 +444,22 @@ contract TuiChainLoan is Ownable
     }
 
     /**
-     * TODO: document
+     * Make a payment.
+     *
+     * Fees are added to _valueAttoDai. The actual transferred value, in
+     * atto-Dai, is given by:
+     *
+     *     _valueAttoDai + paymentFeeAttoDaiPerDai * (_valueAttoDai / 1e18)
+     *
+     * Fails if not in phase Active.
+     *
+     * @param _valueAttoDai Payment value (excluding fees) in atto-Dai
      */
     function makePayment(uint256 _valueAttoDai) external
     {
         // checks
 
-        require(phase == Phase.Active);
+        require(phase == Phase.Active, "wrong phase");
 
         uint256 valueDai = _attoDaiToPositiveWholeDai({
             _attoDai: _valueAttoDai
@@ -432,13 +489,17 @@ contract TuiChainLoan is Ownable
     }
 
     /**
-     * TODO: document
+     * Redeem some tokens, receiving the corresponding amount of Dai in return.
+     *
+     * Fails if not in phase Finalized.
+     *
+     * @param _amountTokens Number of tokens to redeem
      */
     function redeemTokens(uint256 _amountTokens) external
     {
         // checks
 
-        require(phase == Phase.Finalized);
+        require(phase == Phase.Finalized, "wrong phase");
         require(_amountTokens > 0);
 
         // effects

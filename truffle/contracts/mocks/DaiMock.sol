@@ -13,7 +13,7 @@ contract DaiMock is ERC20
     {
     }
 
-    function mint(address account, uint256 amount) public
+    function mint(address account, uint256 amount) external
     {
         _mint({ account: account, amount: amount });
     }

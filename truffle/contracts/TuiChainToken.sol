@@ -9,14 +9,25 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 
 /* -------------------------------------------------------------------------- */
 
+/**
+ * An ERC-20 contract implementing loan tokens.
+ *
+ * Note that decimals() returns 0 for these tokens.
+ */
 contract TuiChainToken is ERC20Burnable
 {
-    TuiChainLoan private immutable loan;
+    /** The loan contract to which this token contract pertains. */
+    TuiChainLoan public immutable loan;
 
     /* ---------------------------------------------------------------------- */
 
     /**
-     * The entire supply is assigned to _loan.
+     * Construct a TuiChainToken.
+     *
+     * The token's entire supply is assigned to the given loan contract.
+     *
+     * @param _loan The loan contract to which the token pertains
+     * @param _totalSupply The token's total supply
      */
     constructor(TuiChainLoan _loan, uint256 _totalSupply) ERC20("", "") public
     {
@@ -24,21 +35,8 @@ contract TuiChainToken is ERC20Burnable
 
         loan = _loan;
 
-        // TODO: document
         _setupDecimals({ decimals_: 0 });
-
-        // assign entire supply to loan contract
         _mint({ account: address(_loan), amount: _totalSupply });
-    }
-
-    /* ---------------------------------------------------------------------- */
-
-    /**
-     * Return the loan contract to which this token contract pertains.
-     */
-    function getLoan() external view returns (TuiChainLoan _loan)
-    {
-        return loan;
     }
 }
 

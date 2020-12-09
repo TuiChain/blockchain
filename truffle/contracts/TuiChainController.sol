@@ -13,22 +13,37 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 /* -------------------------------------------------------------------------- */
 
+/** Manages loan creation and a market instance. */
 contract TuiChainController is Ownable
 {
-    // The Dai contract.
-    IERC20 private immutable dai;
+    /**
+     * Emitted whenever a loan is created using createLoan().
+     *
+     * @param loan The created loan contract
+     */
+    event LoanCreated(TuiChainLoan loan);
 
-    TuiChainMarket private immutable market;
+    /* ---------------------------------------------------------------------- */
 
-    mapping(TuiChainLoan => bool) private loans;
+    /** The Dai contract. */
+    IERC20 public immutable dai;
+
+    /** The market contract. */
+    TuiChainMarket public immutable market;
+
+    /** Maps loan contracts created using createLoan() to true. */
+    mapping(TuiChainLoan => bool) public loanIsValid;
+
+    /** Array of all loans created using createLoan(), in order of creation. */
+    TuiChainLoan[] public loans;
 
     /* ---------------------------------------------------------------------- */
 
     /**
-     * The owner can later change the fee with setMarketFee().
+     * Construct a TuiChainController.
      *
      * @param _dai The Dai contract
-     * @param _marketFeeRecipient Address of EOA or contract to which market
+     * @param _marketFeeRecipient Address of account or contract to which market
      *     fees are to be transferred
      * @param _marketFeeAttoDaiPerNanoDai Market purchase fee, in atto-Dai per
      *     nano-Dai
@@ -53,7 +68,12 @@ contract TuiChainController is Ownable
     /* ---------------------------------------------------------------------- */
 
     /**
-     * TODO: document
+     * Set the market purchase fee to the given value.
+     *
+     * Only the owner can invoke this function.
+     *
+     * @param _marketFeeAttoDaiPerNanoDai The new market purchase fee, in
+     *     atto-Dai per nano-Dai
      */
     function setMarketFee(uint256 _marketFeeAttoDaiPerNanoDai)
         external onlyOwner
@@ -62,7 +82,19 @@ contract TuiChainController is Ownable
     }
 
     /**
-     * TODO: document
+     * Create a loan.
+     *
+     * Only the owner can invoke this function.
+     *
+     * @param _feeRecipient Address of account or contract to which fees are to
+     *     be transferred
+     * @param _loanRecipient Address of account or contract to which the loan
+     *     value is to be transferred
+     * @param _secondsToExpiration Maximum amount of time in seconds for the
+     *     loan to be fully funded, after which it becomes expired
+     * @param _fundingFeeAttoDaiPerDai Funding fee, in atto-Dai per Dai
+     * @param _paymentFeeAttoDaiPerDai Payment fee, in atto-Dai per Dai
+     * @param _requestedValueAttoDai Requested loan value, in atto-Dai
      */
     function createLoan(
         address _feeRecipient,
@@ -73,6 +105,8 @@ contract TuiChainController is Ownable
         uint256 _requestedValueAttoDai
         ) external onlyOwner returns (TuiChainLoan _loan)
     {
+        // create loan contract
+
         TuiChainLoan loan = new TuiChainLoan({
             _dai: dai,
             _controller: this,
@@ -84,53 +118,76 @@ contract TuiChainController is Ownable
             _requestedValueAttoDai: _requestedValueAttoDai
             });
 
-        loans[loan] = true;
+        // add loan contract to list of valid loans
+
+        loanIsValid[loan] = true;
+        loans.push(loan);
+
+        // emit loan creation event
+
+        emit LoanCreated({ loan: loan });
+
+        // return loan contract
 
         return loan;
     }
 
     /**
-     * TODO: document
+     * Cancel the given loan.
+     *
+     * Fails if the loan is not in phase Funding.
+     *
+     * Only the owner can invoke this function.
+     *
+     * @param _loan The contract of the loan to be canceled
      */
     function cancelLoan(TuiChainLoan _loan) external onlyOwner
     {
-        require(loans[_loan]);
+        require(loanIsValid[_loan], "unknown loan");
 
         _loan.cancel();
     }
 
     /**
-     * TODO: document
+     * Finalize the given loan.
+     *
+     * Fails if the loan is not in phase Active.
+     *
+     * Only the owner can invoke this function.
+     *
+     * @param _loan The contract of the loan to be finalized
      */
     function finalizeLoan(TuiChainLoan _loan) external onlyOwner
     {
-        require(loans[_loan]);
+        require(loanIsValid[_loan]);
 
         _loan.finalize();
 
-        market.removeToken({ _token: _loan.getToken() });
-    }
-
-    /**
-     * Invoked by loan to inform that it became active.
-     */
-    function notifyLoanActivation() external
-    {
-        TuiChainLoan loan = TuiChainLoan(msg.sender);
-
-        require(loans[loan]);
-
-        market.addToken({ _token: loan.getToken() });
+        market.removeToken({ _token: _loan.token() });
     }
 
     /* ---------------------------------------------------------------------- */
 
     /**
-     * TODO: document
+     * Return the number of loans created using createLoan().
+     *
+     * @return _numLoans The number of loans created using createLoan()
      */
-    function getMarket() external view returns (TuiChainMarket _market)
+    function numLoans() external view returns (uint256 _numLoans)
     {
-        return market;
+        return loans.length;
+    }
+
+    /**
+     * @dev Invoked by a loan contract to inform that it entered phase Active.
+     */
+    function notifyLoanActivation() external
+    {
+        TuiChainLoan loan = TuiChainLoan(msg.sender);
+
+        require(loanIsValid[loan]);
+
+        market.addToken({ _token: loan.token() });
     }
 }
 
