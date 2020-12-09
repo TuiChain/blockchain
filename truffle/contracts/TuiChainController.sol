@@ -54,7 +54,7 @@ contract TuiChainController is Ownable
         uint256 _marketFeeAttoDaiPerNanoDai
         ) public
     {
-        require(_dai != IERC20(0));
+        require(_dai != IERC20(0), "_dai is the zero address");
 
         dai = _dai;
 
@@ -143,7 +143,10 @@ contract TuiChainController is Ownable
      */
     function cancelLoan(TuiChainLoan _loan) external onlyOwner
     {
-        require(loanIsValid[_loan], "unknown loan");
+        require(
+            loanIsValid[_loan],
+            "_loan is not a loan created by this controller"
+            );
 
         _loan.cancel();
     }
@@ -159,7 +162,10 @@ contract TuiChainController is Ownable
      */
     function finalizeLoan(TuiChainLoan _loan) external onlyOwner
     {
-        require(loanIsValid[_loan]);
+        require(
+            loanIsValid[_loan],
+            "_loan is not a loan created by this controller"
+            );
 
         _loan.finalize();
 
@@ -185,7 +191,10 @@ contract TuiChainController is Ownable
     {
         TuiChainLoan loan = TuiChainLoan(msg.sender);
 
-        require(loanIsValid[loan]);
+        require(
+            loanIsValid[loan],
+            "message sender is not a loan created by this controller"
+            );
 
         market.addToken({ _token: loan.token() });
     }

@@ -183,11 +183,24 @@ contract TuiChainLoan is Ownable
         uint256 _requestedValueAttoDai
         ) public
     {
-        require(_dai != IERC20(0));
-        require(_controller != TuiChainController(0));
-        require(_feeRecipient != address(0));
-        require(_loanRecipient != address(0));
-        require(_secondsToExpiration > 0);
+        require(_dai != IERC20(0), "_dai is the zero address");
+
+        require(
+            _controller != TuiChainController(0),
+            "_controller is the zero address"
+            );
+
+        require(
+            _feeRecipient != address(0),
+            "_feeRecipient is the zero address"
+            );
+
+        require(
+            _loanRecipient != address(0),
+            "_loanRecipient is the zero address"
+            );
+
+        require(_secondsToExpiration > 0, "_secondsToExpiration is zero");
 
         uint256 _requestedValueDai = _attoDaiToPositiveWholeDai({
             _attoDai: _requestedValueAttoDai
@@ -228,7 +241,10 @@ contract TuiChainLoan is Ownable
     function _attoDaiToPositiveWholeDai(uint256 _attoDai)
         private pure returns (uint256 _dai)
     {
-        require(_attoDai > 0 && _attoDai.mod(1e18) == 0);
+        require(
+            _attoDai > 0 && _attoDai.mod(1e18) == 0,
+            "not a positive multiple of 1 Dai"
+            );
 
         return _attoDai.div(1e18);
     }
@@ -344,7 +360,10 @@ contract TuiChainLoan is Ownable
             _attoDai: _valueAttoDai
             });
 
-        require(fundedDai.add(valueDai) <= requestedValueDai);
+        require(
+            fundedDai.add(valueDai) <= requestedValueDai,
+            "_valueAttoDai exceeds remaining requested funding"
+            );
 
         // effects
 
@@ -500,7 +519,7 @@ contract TuiChainLoan is Ownable
         // checks
 
         require(phase == Phase.Finalized, "wrong phase");
-        require(_amountTokens > 0);
+        require(_amountTokens > 0, "_amountTokens is zero");
 
         // effects
 
