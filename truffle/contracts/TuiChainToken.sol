@@ -29,7 +29,7 @@ contract TuiChainToken is ERC20Burnable
      * @param _loan The loan contract to which the token pertains
      * @param _totalSupply The token's total supply
      */
-    constructor(TuiChainLoan _loan, uint256 _totalSupply) ERC20("", "") public
+    constructor(TuiChainLoan _loan, uint256 _totalSupply) public ERC20("", "")
     {
         require(_loan != TuiChainLoan(0), "_loan is the zero address");
 

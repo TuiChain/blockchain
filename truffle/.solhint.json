@@ -1,0 +1,13 @@
+{
+    "extends": "solhint:recommended",
+    "rules": {
+        "compiler-version": ["error", "^0.6.0"],
+        "constructor-syntax": "error",
+        "func-param-name-mixedcase": "error",
+        "max-line-length": ["error", 80],
+        "modifier-name-mixedcase": "error",
+        "no-empty-blocks": "off",
+        "not-rely-on-time": "off",
+        "reason-string": "off"
+    }
+}

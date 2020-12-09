@@ -42,9 +42,7 @@ def generate_contract_module() -> None:
     # compile contracts
 
     subprocess.run(
-        ["node", "node_modules/truffle/build/cli.bundled.js", "compile"],
-        cwd="truffle",
-        check=True,
+        ["npm", "run", "truffle", "compile"], cwd="truffle", check=True
     )
 
     # generate module
