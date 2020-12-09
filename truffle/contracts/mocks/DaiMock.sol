@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract DaiMock is ERC20
 {
-    constructor() ERC20("Dai Stablecoin", "DAI") public
+    constructor() public ERC20("Dai Stablecoin", "DAI")
     {
     }
 

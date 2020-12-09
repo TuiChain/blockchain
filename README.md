@@ -31,13 +31,11 @@ Note: You can also give the Git URL to `pip install`, but using the zip archive 
 
 ## Development setup
 
-To develop contracts, first install truffle globally using `npm install -g truffle`.
-Then, when in directory `truffle/`, use:
+To develop contracts move to directory `truffle/` and use:
 
 - `npm install` to install the Truffle setup dependencies;
-- `truffle compile` to compile the contracts;
-- `truffle test` to run all tests;
-- `truffle test <path>` to run a specific test.
+- `npm run compile` to compile the contracts;
+- `npm test` to run all linters and tests.
 
 To develop the Python layer, create a virtualenv and install the Python package in "editable" mode, *e.g.*:
 
