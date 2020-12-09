@@ -41,7 +41,7 @@ contract("Marketplace", function (accounts) {
 
   // variable which represents the loan object
   let loanObject = null;
-  
+
   // variable which represents the funds provided from account 3, also represent the amount of TuiChainTokens received
   let providedFunds = null;
 
@@ -71,10 +71,10 @@ contract("Marketplace", function (accounts) {
     tuiChainLoan      = await TuiChainLoan.at(transaction.logs[0].address);
 
     // get marketplace contract from an address with at() function
-    tuiChainMarket = await TuiChainMarket.at(await tuiChainController.getMarket());
+    tuiChainMarket = await TuiChainMarket.at(await tuiChainController.market());
 
     // get token  contract from an address with at() functions
-    tuiChainToken = await TuiChainToken.at(await tuiChainLoan.getToken());
+    tuiChainToken = await TuiChainToken.at(await tuiChainLoan.token());
 
     // start every account with 1200 DAI
     accounts.forEach( account => {
@@ -86,7 +86,7 @@ contract("Marketplace", function (accounts) {
     await daiMock.increaseAllowance(tuiChainLoan.address, BigInt(1200) * (BigInt(10) ** BigInt(18)), {from: accounts[2]});
     await daiMock.increaseAllowance(tuiChainMarket.address, BigInt(1200) * (BigInt(10) ** BigInt(18)), {from: accounts[3]});
     await tuiChainToken.increaseAllowance(tuiChainMarket.address, providedFunds, {from: accounts[2]});
-    
+
     // account 3 funds the loan
     await tuiChainLoan.provideFunds(BigInt(providedFunds) * (BigInt(10) ** BigInt(18)), {from: accounts[2]});
   });
@@ -98,7 +98,7 @@ contract("Marketplace", function (accounts) {
     const priceToSell  = BigInt(55) * (BigInt(10) ** BigInt(18));
 
     await expectRevert.unspecified(
-      tuiChainMarket.addSellPosition(tuiChainToken.address, tokensToSell, priceToSell, {from: accounts[2]})
+      tuiChainMarket.createSellPosition(tuiChainToken.address, tokensToSell, priceToSell, {from: accounts[2]})
     );
   });
 
@@ -107,7 +107,7 @@ contract("Marketplace", function (accounts) {
     const priceToSell  = BigInt(55) * (BigInt(10) ** BigInt(18));
 
     try {
-      await tuiChainMarket.addSellPosition(tuiChainToken.address, tokensToSell, priceToSell, {from: accounts[2]});
+      await tuiChainMarket.createSellPosition(tuiChainToken.address, tokensToSell, priceToSell, {from: accounts[2]});
     } catch (error) {
       return assert(error.message);
     }
@@ -120,7 +120,7 @@ contract("Marketplace", function (accounts) {
     const priceToSell  = BigInt(55) * (BigInt(10) ** BigInt(18));
 
     await expectRevert.unspecified(
-      tuiChainMarket.addSellPosition(daiMock.address, tokensToSell, priceToSell, {from: accounts[2]})
+      tuiChainMarket.createSellPosition(daiMock.address, tokensToSell, priceToSell, {from: accounts[2]})
     );
   });
 
@@ -129,7 +129,7 @@ contract("Marketplace", function (accounts) {
     const priceToSell          = BigInt(55) * (BigInt(10) ** BigInt(18));
     const initialTokensBalance = (await tuiChainToken.balanceOf(accounts[2])).toNumber();
 
-    await tuiChainMarket.addSellPosition(tuiChainToken.address, tokensToSell, priceToSell, {from: accounts[2]});
+    await tuiChainMarket.createSellPosition(tuiChainToken.address, tokensToSell, priceToSell, {from: accounts[2]});
     const finalTokensBalance = (await tuiChainToken.balanceOf(accounts[2])).toNumber();
 
     assert(finalTokensBalance == initialTokensBalance - tokensToSell);
@@ -155,7 +155,7 @@ contract("Marketplace", function (accounts) {
     const priceToSell          = BigInt(55) * (BigInt(10) ** BigInt(18));
 
     await expectRevert.unspecified(
-      tuiChainMarket.addSellPosition(tuiChainToken.address, tokensToSell, priceToSell, {from: accounts[2]})
+      tuiChainMarket.createSellPosition(tuiChainToken.address, tokensToSell, priceToSell, {from: accounts[2]})
     );
   });
 
@@ -203,17 +203,17 @@ contract("Marketplace", function (accounts) {
 
     await expectRevert.unspecified(
       tuiChainMarket
-        .buy(tuiChainToken.address, accounts[1], tokensToBuy, buyPrice, {from: accounts[3]})
+        .purchase(tuiChainToken.address, accounts[1], tokensToBuy, buyPrice, marketFeeAttoDaiPerNanoDai, {from: accounts[3]})
     );
   });
-  
+
   it("Fails to buy from existent sell position with a different price", async function () {
     tokensToBuy    = 5;
     const buyPrice = BigInt(50) * (BigInt(10) ** BigInt(18));
 
     await expectRevert.unspecified(
       tuiChainMarket
-        .buy(tuiChainToken.address, accounts[2], tokensToBuy, buyPrice, {from: accounts[3]})
+        .purchase(tuiChainToken.address, accounts[2], tokensToBuy, buyPrice, marketFeeAttoDaiPerNanoDai, {from: accounts[3]})
     );
   });
 
@@ -223,7 +223,7 @@ contract("Marketplace", function (accounts) {
 
     await expectRevert.unspecified(
       tuiChainMarket
-        .buy(tuiChainToken.address, accounts[2], tokensToBuy, buyPrice, {from: accounts[3]})
+        .purchase(tuiChainToken.address, accounts[2], tokensToBuy, buyPrice, marketFeeAttoDaiPerNanoDai, {from: accounts[3]})
     );
   });
 
@@ -234,7 +234,7 @@ contract("Marketplace", function (accounts) {
     const buyPrice = BigInt(60) * (BigInt(10) ** BigInt(18));
 
     await tuiChainMarket
-      .buy(tuiChainToken.address, accounts[2], tokensToBuy, buyPrice, {from: accounts[3]});
+      .purchase(tuiChainToken.address, accounts[2], tokensToBuy, buyPrice, marketFeeAttoDaiPerNanoDai, {from: accounts[3]});
     const finalTokensBalance = (await tuiChainToken.balanceOf(accounts[3])).toNumber();
 
     assert(finalTokensBalance == tokensToBuy)

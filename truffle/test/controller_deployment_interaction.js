@@ -53,13 +53,13 @@ contract("Controller Deployment and Interaction", function (accounts) {
     tuiChainController = await TuiChainController.new(daiMock.address, accounts[0], marketFeeAttoDaiPerNanoDai);
 
     // get contract from an address with at() function
-    tuiChainMarket = await TuiChainMarket.at(await tuiChainController.getMarket());
+    tuiChainMarket = await TuiChainMarket.at(await tuiChainController.market());
 
     // start every account with 1000 DAI
     accounts.forEach( account => {
       daiMock.mint(account, BigInt(1000) * (BigInt(10) ** BigInt(18)));
     });
-  
+
   });
 
   // runs before every test
@@ -81,7 +81,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
   it("Fail to change market fee if not the owner", async function () {
 
     const newFee = BigInt(2) * (BigInt(10) ** BigInt(8));
-    
+
     try {
 
       await tuiChainController.setMarketFee(newFee, {from: accounts[1]});
@@ -102,7 +102,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     await tuiChainController.setMarketFee(newFee);
 
-    return assert((await tuiChainMarket.getFee()).toNumber() == newFee);
+    return assert((await tuiChainMarket.feeAttoDaiPerNanoDai()).toNumber() == newFee);
 
   });
 
@@ -137,7 +137,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
       await tuiChainController.createLoan(...Object.values(loanObject));
 
     } catch(e) {
-      
+
       return assert(e.message.includes('_secondsToExpiration'));
 
     }
@@ -158,7 +158,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
   it("Fail to create loan without a multiple integer of a unit of DAI", async function () {
 
-    loanObject._requestedValueAttoDai = BigInt(1.5 * (10 ** 18)); 
+    loanObject._requestedValueAttoDai = BigInt(1.5 * (10 ** 18));
 
     await expectRevert.unspecified(
       tuiChainController.createLoan(...Object.values(loanObject))
@@ -169,7 +169,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
   it("Fail to create a loan if not the owner", async function () {
 
     try {
-    
+
       await tuiChainController.createLoan(...Object.values(loanObject), {from: accounts[1]});
 
     } catch(e) {
@@ -179,14 +179,14 @@ contract("Controller Deployment and Interaction", function (accounts) {
     }
 
   });
-  
+
   it("Create a loan with a requested DAI value of 1000 DAI", async function () {
 
     const transaction = await tuiChainController.createLoan(...Object.values(loanObject));
 
     tuiChainLoan = await TuiChainLoan.at(transaction.logs[0].address);
 
-    return assert((await tuiChainLoan.getToken) != constants.ZERO_ADDRESS);
+    return assert((await tuiChainLoan.token()) != constants.ZERO_ADDRESS);
 
   });
 
@@ -197,7 +197,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
     try {
 
       assert((await tuiChainLoan.checkExpiration.call()) == false);
-    
+
       await tuiChainController.finalizeLoan(tuiChainLoan.address, {from: accounts[1]});
 
     } catch(e) {
@@ -222,17 +222,17 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     // 10 accounts giving 100 DAI each
     for (let index = 0; index < accounts.length; index++) {
-      
+
       await daiMock.increaseAllowance(tuiChainLoan.address, BigInt(200) * (BigInt(10) ** BigInt(18)), {from: accounts[index]});
-      await tuiChainLoan.provideFunds(BigInt(100) * (BigInt(10) ** BigInt(18)), {from: accounts[index]});  
-      
+      await tuiChainLoan.provideFunds(BigInt(100) * (BigInt(10) ** BigInt(18)), {from: accounts[index]});
+
     }
 
-    // check that loan is ACTIVE 
+    // check that loan is ACTIVE
     var events = await tuiChainLoan.getPastEvents('PhaseUpdated', {fromBlock: 0, toBlock: 'latest'});
 
     assert(events[0].returnValues.newPhase == Phase.Active);
-    
+
     await tuiChainController.finalizeLoan(tuiChainLoan.address);
 
     events = await tuiChainLoan.getPastEvents('PhaseUpdated', {fromBlock: 0, toBlock: 'latest'});
@@ -243,7 +243,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
   /* -------------------------------------------------------------------------- */
 
-  
+
   it("Fail to cancel the loan if not the owner", async function () {
 
     const transaction = await tuiChainController.createLoan(...Object.values(loanObject));
@@ -253,7 +253,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
     try {
 
       assert((await tuiChainLoan.checkExpiration.call()) == false);
-    
+
       await tuiChainController.cancelLoan(tuiChainLoan.address, {from: accounts[1]});
 
     } catch(e) {
@@ -268,7 +268,7 @@ contract("Controller Deployment and Interaction", function (accounts) {
 
     assert((await tuiChainLoan.checkExpiration.call()) == false);
 
-    await tuiChainController.cancelLoan(tuiChainLoan.address);    
+    await tuiChainController.cancelLoan(tuiChainLoan.address);
 
     const events = await tuiChainLoan.getPastEvents('PhaseUpdated', {fromBlock: 0, toBlock: 'latest'});
 
@@ -284,8 +284,8 @@ contract("Controller Deployment and Interaction", function (accounts) {
       tuiChainController.notifyLoanActivation()
     );
 
-  }); 
-  
+  });
+
   /* -------------------------------------------------------------------------- */
 
 });
