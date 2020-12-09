@@ -12,14 +12,8 @@ const {
     expectRevert // Assertions for transactions that should fail
 } = require("@openzeppelin/test-helpers");
 
-// Mocks an ENUM identical to the one in the TuiChainLoan
-const Phase = Object.freeze({
-    Funding: 0,
-    Expired: 1,
-    Canceled: 2,
-    Active: 3,
-    Finalized: 4
-});
+// Imports our helpers
+var { fundsToInt } = require('./helpers');
 
 /* -------------------------------------------------------------------------- */
 
@@ -49,6 +43,9 @@ contract("Marketplace", function(accounts) {
     // variable which represents the funds provided from account 3, also represent the amount of TuiChainTokens received
     let providedFunds = null;
 
+    // variable wich represents the fee of funding
+    let fundingFee = 0.1;
+
     /* -------------------------------------------------------------------------- */
 
     // runs once before the first test
@@ -61,7 +58,7 @@ contract("Marketplace", function(accounts) {
             _feeRecipient: accounts[0],
             _loanRecipient: accounts[1],
             _secondsToExpiration: 60, // 1 minute
-            _fundingFeeAttoDaiPerDai: BigInt(10) ** BigInt(17), // 10% fee
+            _fundingFeeAttoDaiPerDai: BigInt(fundingFee * 100) ** BigInt(17), // 10% fee
             _paymentFeeAttoDaiPerDai: BigInt(10) ** BigInt(17), // 10% fee
             _requestedValueAttoDai: BigInt(1000) * BigInt(10) ** BigInt(18) // 1000 DAI
         };
@@ -121,7 +118,7 @@ contract("Marketplace", function(accounts) {
 
     it("Fails to create a sell position with an amount greater than the balance", async function() {
         const tokensToSell = 1050;
-        const priceToSell = BigInt(55) * BigInt(10) ** BigInt(18);
+        const priceToSell  = BigInt(55) * BigInt(10) ** BigInt(18);
 
         await expectRevert.unspecified(
             tuiChainMarket.createSellPosition(
@@ -135,7 +132,7 @@ contract("Marketplace", function(accounts) {
 
     it("Fails to create a sell position with an amount smaller than the 0", async function() {
         const tokensToSell = -1;
-        const priceToSell = BigInt(55) * BigInt(10) ** BigInt(18);
+        const priceToSell  = BigInt(55) * BigInt(10) ** BigInt(18);
 
         try {
             await tuiChainMarket.createSellPosition(
@@ -153,7 +150,7 @@ contract("Marketplace", function(accounts) {
 
     it("Fails to create a sell position for a not allowed token", async function() {
         const tokensToSell = 1050;
-        const priceToSell = BigInt(55) * BigInt(10) ** BigInt(18);
+        const priceToSell  = BigInt(55) * BigInt(10) ** BigInt(18);
 
         await expectRevert.unspecified(
             tuiChainMarket.createSellPosition(
@@ -167,7 +164,7 @@ contract("Marketplace", function(accounts) {
 
     it("Creates sell position", async function() {
         const tokensToSell = 50;
-        const priceToSell = BigInt(55) * BigInt(10) ** BigInt(18);
+        const priceToSell  = BigInt(55) * BigInt(10) ** BigInt(18);
         const initialTokensBalance = (
             await tuiChainToken.balanceOf(accounts[2])
         ).toNumber();
@@ -210,7 +207,7 @@ contract("Marketplace", function(accounts) {
 
     it("Fails to creates duplicated sell position", async function() {
         const tokensToSell = 50;
-        const priceToSell = BigInt(55) * BigInt(10) ** BigInt(18);
+        const priceToSell  = BigInt(55) * BigInt(10) ** BigInt(18);
 
         await expectRevert.unspecified(
             tuiChainMarket.createSellPosition(
@@ -233,7 +230,7 @@ contract("Marketplace", function(accounts) {
     });
 
     it("Increases the amount of a sell position", async function() {
-        const tokensToIncrease = 5;
+        const tokensToIncrease     = 5;
         const initialTokensBalance = (
             await tuiChainToken.balanceOf(accounts[2])
         ).toNumber();
@@ -271,7 +268,7 @@ contract("Marketplace", function(accounts) {
     });
 
     it("Decreases the amount of a sell position", async function() {
-        const tokensToDecrease = 5;
+        const tokensToDecrease     = 5;
         const initialTokensBalance = (
             await tuiChainToken.balanceOf(accounts[2])
         ).toNumber();
@@ -290,7 +287,7 @@ contract("Marketplace", function(accounts) {
 
     it("Fails to buy from non-existent sell position", async function() {
         const tokensToBuy = 5;
-        const buyPrice = BigInt(60) * BigInt(10) ** BigInt(18);
+        const buyPrice    = BigInt(60) * BigInt(10) ** BigInt(18);
 
         await expectRevert.unspecified(
             tuiChainMarket.purchase(
@@ -305,7 +302,7 @@ contract("Marketplace", function(accounts) {
     });
 
     it("Fails to buy from existent sell position with a different price", async function() {
-        tokensToBuy = 5;
+        tokensToBuy    = 5;
         const buyPrice = BigInt(50) * BigInt(10) ** BigInt(18);
 
         await expectRevert.unspecified(
@@ -321,7 +318,7 @@ contract("Marketplace", function(accounts) {
     });
 
     it("Fails to buy an amount greater than the available from existent sell position", async function() {
-        tokensToBuy = 100;
+        tokensToBuy    = 100;
         const buyPrice = BigInt(60) * BigInt(10) ** BigInt(18);
 
         await expectRevert.unspecified(
@@ -339,22 +336,27 @@ contract("Marketplace", function(accounts) {
     // represents the amount of tokens that the account 4 wil buy from 2 (necessary for other test)
     let tokensToBuy = null;
     it("Buys from existent sell position", async function() {
-        tokensToBuy = 5;
-        const buyPrice = BigInt(60) * BigInt(10) ** BigInt(18);
+        tokensToBuy            = 5;
+        const buyPrice         = BigInt(60) * (BigInt(10) ** BigInt(18));
+        const initialSellerDai = fundsToInt(await daiMock.balanceOf(accounts[2]));
+        const initialBuyerDai  = fundsToInt(await daiMock.balanceOf(accounts[3]));
 
-        await tuiChainMarket.purchase(
-            tuiChainToken.address,
-            accounts[2],
-            tokensToBuy,
-            buyPrice,
-            marketFeeAttoDaiPerNanoDai,
-            { from: accounts[3] }
-        );
-        const finalTokensBalance = (
-            await tuiChainToken.balanceOf(accounts[3])
-        ).toNumber();
+        await tuiChainMarket
+            .purchase(
+                tuiChainToken.address, 
+                accounts[2], 
+                tokensToBuy, 
+                buyPrice, 
+                marketFeeAttoDaiPerNanoDai, 
+                {from: accounts[3]}
+            );
+        const finalTokensBalance = (await tuiChainToken.balanceOf(accounts[3])).toNumber();
+        const finalSellerDai     = fundsToInt(await daiMock.balanceOf(accounts[2]));
+        const finalBuyerDai      = fundsToInt(await daiMock.balanceOf(accounts[3]));
 
         assert(finalTokensBalance == tokensToBuy);
+        assert(finalSellerDai     == initialSellerDai + (tokensToBuy * 60));
+        assert(finalBuyerDai      == initialBuyerDai - ((tokensToBuy * 60) * (1 + fundingFee)));
     });
 
     it("Fails to remove non-existent sell position", async function() {
