@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="tox" type="Tox" factoryName="Tox">
-    <module name="tuichain-ethereum" />
+    <module name="tuichain_ethereum" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <option name="SDK_HOME" value="" />

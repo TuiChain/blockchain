@@ -4,12 +4,15 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.env" />
       <excludeFolder url="file://$MODULE_DIR$/.mypy_cache" />
+      <excludeFolder url="file://$MODULE_DIR$/.pytest_cache" />
       <excludeFolder url="file://$MODULE_DIR$/.tox" />
       <excludeFolder url="file://$MODULE_DIR$/build" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/tuichain-ethereum.egg-info" />
+      <excludeFolder url="file://$MODULE_DIR$/truffle/build" />
+      <excludeFolder url="file://$MODULE_DIR$/truffle/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/tuichain_ethereum.egg-info" />
     </content>
-    <orderEntry type="inheritedJdk" />
+    <orderEntry type="jdk" jdkName="tuichain_ethereum" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-  </component> 
+  </component>
 </module>

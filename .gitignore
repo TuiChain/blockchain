@@ -8,6 +8,7 @@
 *.egg-info
 .env
 .mypy_cache
+.pytest_cache
 .tox
 /.idea/dictionaries
 /.idea/shelf
@@ -17,7 +18,7 @@
 __pycache__
 
 # auto-generated _contracts module
-/tuichain/_contracts.py
+/tuichain_ethereum/_contracts.py
 
 # other things
 .DS_Store

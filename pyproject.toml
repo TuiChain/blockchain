@@ -2,6 +2,7 @@
 
 [tool.black]
 
+force-exclude = "/tuichain_ethereum/_contracts.py"
 line-length = 80
 target-version = [ "py38" ]
 
@@ -20,7 +21,7 @@ extras =
     test
 commands =
     mypy
-    black --check setup.py test tuichain
+    black --check setup.py test tuichain_ethereum
     pytest test
 """
 
