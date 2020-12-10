@@ -14,8 +14,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 /* -------------------------------------------------------------------------- */
 
 /** Manages loan creation and a market instance. */
-contract TuiChainController is Ownable
-{
+contract TuiChainController is Ownable {
     /**
      * Emitted whenever a loan is created using createLoan().
      *
@@ -52,8 +51,7 @@ contract TuiChainController is Ownable
         IERC20 _dai,
         address _marketFeeRecipient,
         uint256 _marketFeeAttoDaiPerNanoDai
-        ) public
-    {
+    ) public {
         require(_dai != IERC20(0), "_dai is the zero address");
 
         dai = _dai;
@@ -62,7 +60,7 @@ contract TuiChainController is Ownable
             _dai: _dai,
             _feeRecipient: _marketFeeRecipient,
             _feeAttoDaiPerNanoDai: _marketFeeAttoDaiPerNanoDai
-            });
+        });
     }
 
     /* ---------------------------------------------------------------------- */
@@ -76,9 +74,10 @@ contract TuiChainController is Ownable
      *     atto-Dai per nano-Dai
      */
     function setMarketFee(uint256 _marketFeeAttoDaiPerNanoDai)
-        external onlyOwner
+        external
+        onlyOwner
     {
-        market.setFee({ _feeAttoDaiPerNanoDai: _marketFeeAttoDaiPerNanoDai });
+        market.setFee({_feeAttoDaiPerNanoDai: _marketFeeAttoDaiPerNanoDai});
     }
 
     /**
@@ -103,19 +102,19 @@ contract TuiChainController is Ownable
         uint256 _fundingFeeAttoDaiPerDai,
         uint256 _paymentFeeAttoDaiPerDai,
         uint256 _requestedValueAttoDai
-        ) external onlyOwner returns (TuiChainLoan _loan)
-    {
+    ) external onlyOwner returns (TuiChainLoan _loan) {
         // create loan contract
 
-        TuiChainLoan loan = new TuiChainLoan({
-            _dai: dai,
-            _controller: this,
-            _feeRecipient: _feeRecipient,
-            _loanRecipient: _loanRecipient,
-            _secondsToExpiration: _secondsToExpiration,
-            _fundingFeeAttoDaiPerDai: _fundingFeeAttoDaiPerDai,
-            _paymentFeeAttoDaiPerDai: _paymentFeeAttoDaiPerDai,
-            _requestedValueAttoDai: _requestedValueAttoDai
+        TuiChainLoan loan =
+            new TuiChainLoan({
+                _dai: dai,
+                _controller: this,
+                _feeRecipient: _feeRecipient,
+                _loanRecipient: _loanRecipient,
+                _secondsToExpiration: _secondsToExpiration,
+                _fundingFeeAttoDaiPerDai: _fundingFeeAttoDaiPerDai,
+                _paymentFeeAttoDaiPerDai: _paymentFeeAttoDaiPerDai,
+                _requestedValueAttoDai: _requestedValueAttoDai
             });
 
         // add loan contract to list of valid loans
@@ -125,7 +124,7 @@ contract TuiChainController is Ownable
 
         // emit loan creation event
 
-        emit LoanCreated({ loan: loan });
+        emit LoanCreated({loan: loan});
 
         // return loan contract
 
@@ -141,12 +140,11 @@ contract TuiChainController is Ownable
      *
      * @param _loan The contract of the loan to be canceled
      */
-    function cancelLoan(TuiChainLoan _loan) external onlyOwner
-    {
+    function cancelLoan(TuiChainLoan _loan) external onlyOwner {
         require(
             loanIsValid[_loan],
             "_loan is not a loan created by this controller"
-            );
+        );
 
         _loan.cancel();
     }
@@ -160,16 +158,15 @@ contract TuiChainController is Ownable
      *
      * @param _loan The contract of the loan to be finalized
      */
-    function finalizeLoan(TuiChainLoan _loan) external onlyOwner
-    {
+    function finalizeLoan(TuiChainLoan _loan) external onlyOwner {
         require(
             loanIsValid[_loan],
             "_loan is not a loan created by this controller"
-            );
+        );
 
         _loan.finalize();
 
-        market.removeToken({ _token: _loan.token() });
+        market.removeToken({_token: _loan.token()});
     }
 
     /* ---------------------------------------------------------------------- */
@@ -179,24 +176,22 @@ contract TuiChainController is Ownable
      *
      * @return _numLoans The number of loans created using createLoan()
      */
-    function numLoans() external view returns (uint256 _numLoans)
-    {
+    function numLoans() external view returns (uint256 _numLoans) {
         return loans.length;
     }
 
     /**
      * @dev Invoked by a loan contract to inform that it entered phase Active.
      */
-    function notifyLoanActivation() external
-    {
+    function notifyLoanActivation() external {
         TuiChainLoan loan = TuiChainLoan(msg.sender);
 
         require(
             loanIsValid[loan],
             "message sender is not a loan created by this controller"
-            );
+        );
 
-        market.addToken({ _token: loan.token() });
+        market.addToken({_token: loan.token()});
     }
 }
 

@@ -14,8 +14,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 /* -------------------------------------------------------------------------- */
 
 /** Implements all token market functionality. */
-contract TuiChainMarket is Ownable
-{
+contract TuiChainMarket is Ownable {
     using SafeERC20 for IERC20;
     using SafeERC20 for TuiChainToken;
     using SafeMath for uint256;
@@ -34,7 +33,7 @@ contract TuiChainMarket is Ownable
     event FeeUpdated(
         uint256 previousFeeAttoDaiPerNanoDai,
         uint256 newFeeAttoDaiPerNanoDai
-        );
+    );
 
     /**
      * Emitted whenever tokens are purchased.
@@ -55,7 +54,7 @@ contract TuiChainMarket is Ownable
         uint256 amountTokens,
         uint256 priceAttoDaiPerToken,
         uint256 totalFeeAttoDai
-        );
+    );
 
     /* ---------------------------------------------------------------------- */
 
@@ -91,14 +90,13 @@ contract TuiChainMarket is Ownable
         IERC20 _dai,
         address _feeRecipient,
         uint256 _feeAttoDaiPerNanoDai
-        ) public
-    {
+    ) public {
         require(_dai != IERC20(0), "_dai is the zero address");
 
         require(
             _feeRecipient != address(0),
             "_feeRecipient is the zero address"
-            );
+        );
 
         dai = _dai;
 
@@ -117,12 +115,14 @@ contract TuiChainMarket is Ownable
      * @return _nanoDai The output value, in nano-Dai
      */
     function _attoDaiToPositiveWholeNanoDai(uint256 _attoDai)
-        private pure returns (uint256 _nanoDai)
+        private
+        pure
+        returns (uint256 _nanoDai)
     {
         require(
             _attoDai > 0 && _attoDai.mod(1e9) == 0,
             "not a positive multiple of 1 nano-Dai"
-            );
+        );
 
         return _attoDai.div(1e9);
     }
@@ -138,8 +138,7 @@ contract TuiChainMarket is Ownable
      *
      * @param _token The token to add to the set of allowed tokens
      */
-    function addToken(TuiChainToken _token) external onlyOwner
-    {
+    function addToken(TuiChainToken _token) external onlyOwner {
         require(_token != TuiChainToken(0), "_token is the zero address");
 
         tokenIsAllowed[_token] = true;
@@ -154,8 +153,7 @@ contract TuiChainMarket is Ownable
      *
      * @param _token The token to remove from the set of allowed tokens
      */
-    function removeToken(TuiChainToken _token) external onlyOwner
-    {
+    function removeToken(TuiChainToken _token) external onlyOwner {
         require(_token != TuiChainToken(0), "_token is the zero address");
 
         tokenIsAllowed[_token] = false;
@@ -169,12 +167,11 @@ contract TuiChainMarket is Ownable
      * @param _feeAttoDaiPerNanoDai The new purchase fee, in atto-Dai per
      *     nano-Dai
      */
-    function setFee(uint256 _feeAttoDaiPerNanoDai) external onlyOwner
-    {
+    function setFee(uint256 _feeAttoDaiPerNanoDai) external onlyOwner {
         emit FeeUpdated({
             previousFeeAttoDaiPerNanoDai: feeAttoDaiPerNanoDai,
             newFeeAttoDaiPerNanoDai: _feeAttoDaiPerNanoDai
-            });
+        });
 
         feeAttoDaiPerNanoDai = _feeAttoDaiPerNanoDai;
     }
@@ -187,7 +184,9 @@ contract TuiChainMarket is Ownable
      * @return _numSellPositions The number of existing sell positions
      */
     function numSellPositions()
-        external view returns (uint256 _numSellPositions)
+        external
+        view
+        returns (uint256 _numSellPositions)
     {
         return sellPositions.count();
     }
@@ -205,17 +204,18 @@ contract TuiChainMarket is Ownable
      * @return _amountTokens The amount of tokens that are up for sale
      * @return _priceAttoDaiPerToken The selling price, in atto-Dai per token
      */
-    function sellPositionAt(
-        uint256 _index
-        ) external view returns (
-        TuiChainToken _token,
-        address _seller,
-        uint256 _amountTokens,
-        uint256 _priceAttoDaiPerToken
+    function sellPositionAt(uint256 _index)
+        external
+        view
+        returns (
+            TuiChainToken _token,
+            address _seller,
+            uint256 _amountTokens,
+            uint256 _priceAttoDaiPerToken
         )
     {
         TuiChainMarketLib.SellPosition storage position =
-            sellPositions.at({ _index: _index });
+            sellPositions.at({_index: _index});
 
         _token = position.token;
         _seller = position.seller;
@@ -232,16 +232,13 @@ contract TuiChainMarket is Ownable
      * @return _amountTokens The amount of tokens that are up for sale
      * @return _priceAttoDaiPerToken The selling price, in atto-Dai per token
      */
-    function getSellPosition(
-        TuiChainToken _token,
-        address _seller
-        ) external view returns (
-        uint256 _amountTokens,
-        uint256 _priceAttoDaiPerToken
-        )
+    function getSellPosition(TuiChainToken _token, address _seller)
+        external
+        view
+        returns (uint256 _amountTokens, uint256 _priceAttoDaiPerToken)
     {
         TuiChainMarketLib.SellPosition storage position =
-            sellPositions.get({ _token: _token, _seller: _seller });
+            sellPositions.get({_token: _token, _seller: _seller});
 
         _amountTokens = position.amountTokens;
         _priceAttoDaiPerToken = position.priceNanoDaiPerToken.mul(1e9);
@@ -262,22 +259,20 @@ contract TuiChainMarket is Ownable
         TuiChainToken _token,
         uint256 _amountTokens,
         uint256 _priceAttoDaiPerToken
-        ) external
-    {
+    ) external {
         // checks
 
         require(tokenIsAllowed[_token], "_token not allowed by the market");
 
         require(
-            !sellPositions.exists({ _token: _token, _seller: msg.sender }),
+            !sellPositions.exists({_token: _token, _seller: msg.sender}),
             "sell position already exists"
-            );
+        );
 
         require(_amountTokens > 0, "_amountTokens is zero");
 
-        uint256 priceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai({
-            _attoDai: _priceAttoDaiPerToken
-            });
+        uint256 priceNanoDaiPerToken =
+            _attoDaiToPositiveWholeNanoDai({_attoDai: _priceAttoDaiPerToken});
 
         // effects
 
@@ -286,7 +281,7 @@ contract TuiChainMarket is Ownable
             _seller: msg.sender,
             _amountTokens: _amountTokens,
             _priceNanoDaiPerToken: priceNanoDaiPerToken
-            });
+        });
 
         // interactions
 
@@ -294,7 +289,7 @@ contract TuiChainMarket is Ownable
             from: msg.sender,
             to: address(this),
             value: _amountTokens
-            });
+        });
     }
 
     /**
@@ -307,27 +302,26 @@ contract TuiChainMarket is Ownable
      * @param _token The ERC-20 contract implementing the token whose sell
      *     position to remove
      */
-    function removeSellPosition(TuiChainToken _token) external
-    {
+    function removeSellPosition(TuiChainToken _token) external {
         // checks
 
         require(
-            sellPositions.exists({ _token: _token, _seller: msg.sender }),
+            sellPositions.exists({_token: _token, _seller: msg.sender}),
             "sell position does not exist"
-            );
+        );
 
         // effects
 
         TuiChainMarketLib.SellPosition storage position =
-            sellPositions.get({ _token: _token, _seller: msg.sender });
+            sellPositions.get({_token: _token, _seller: msg.sender});
 
         uint256 amountTokens = position.amountTokens;
 
-        sellPositions.remove({ _token: _token, _seller: msg.sender });
+        sellPositions.remove({_token: _token, _seller: msg.sender});
 
         // interactions
 
-        _token.safeTransfer({ to: msg.sender, value: amountTokens });
+        _token.safeTransfer({to: msg.sender, value: amountTokens});
     }
 
     /**
@@ -346,22 +340,21 @@ contract TuiChainMarket is Ownable
     function increaseSellPositionAmount(
         TuiChainToken _token,
         uint256 _increaseAmount
-        ) external
-    {
+    ) external {
         // checks
 
         require(tokenIsAllowed[_token], "_token not allowed by the market");
         require(_increaseAmount > 0, "_increaseAmount is zero");
 
         require(
-            sellPositions.exists({ _token: _token, _seller: msg.sender }),
+            sellPositions.exists({_token: _token, _seller: msg.sender}),
             "sell position does not exist"
-            );
+        );
 
         // effects
 
         TuiChainMarketLib.SellPosition storage position =
-            sellPositions.get({ _token: _token, _seller: msg.sender });
+            sellPositions.get({_token: _token, _seller: msg.sender});
 
         position.amountTokens = position.amountTokens.add(_increaseAmount);
 
@@ -371,7 +364,7 @@ contract TuiChainMarket is Ownable
             from: msg.sender,
             to: address(this),
             value: _increaseAmount
-            });
+        });
     }
 
     /**
@@ -393,36 +386,35 @@ contract TuiChainMarket is Ownable
     function decreaseSellPositionAmount(
         TuiChainToken _token,
         uint256 _decreaseAmount
-        ) external
-    {
+    ) external {
         // checks
 
         require(tokenIsAllowed[_token], "_token not allowed by the market");
         require(_decreaseAmount > 0, "_decreaseAmount is zero");
 
         require(
-            sellPositions.exists({ _token: _token, _seller: msg.sender }),
+            sellPositions.exists({_token: _token, _seller: msg.sender}),
             "sell position does not exist"
-            );
+        );
 
         TuiChainMarketLib.SellPosition storage position =
-            sellPositions.get({ _token: _token, _seller: msg.sender });
+            sellPositions.get({_token: _token, _seller: msg.sender});
 
         require(
             _decreaseAmount <= position.amountTokens,
             "_decreaseAmount exceeds amount for sale"
-            );
+        );
 
         // effects
 
         position.amountTokens = position.amountTokens.sub(_decreaseAmount);
 
         if (position.amountTokens == 0)
-            sellPositions.remove({ _token: _token, _seller: msg.sender });
+            sellPositions.remove({_token: _token, _seller: msg.sender});
 
         // interactions
 
-        _token.safeTransfer({ to: msg.sender, value: _decreaseAmount });
+        _token.safeTransfer({to: msg.sender, value: _decreaseAmount});
     }
 
     /**
@@ -436,25 +428,25 @@ contract TuiChainMarket is Ownable
     function updateSellPositionPrice(
         TuiChainToken _token,
         uint256 _newPriceAttoDaiPerToken
-        ) external
-    {
+    ) external {
         // checks
 
         require(tokenIsAllowed[_token], "_token not allowed by the market");
 
         require(
-            sellPositions.exists({ _token: _token, _seller: msg.sender }),
+            sellPositions.exists({_token: _token, _seller: msg.sender}),
             "sell position does not exist"
-            );
+        );
 
-        uint256 newPriceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai({
-            _attoDai: _newPriceAttoDaiPerToken
+        uint256 newPriceNanoDaiPerToken =
+            _attoDaiToPositiveWholeNanoDai({
+                _attoDai: _newPriceAttoDaiPerToken
             });
 
         // effects
 
         TuiChainMarketLib.SellPosition storage position =
-            sellPositions.get({ _token: _token, _seller: msg.sender });
+            sellPositions.get({_token: _token, _seller: msg.sender});
 
         position.priceNanoDaiPerToken = newPriceNanoDaiPerToken;
     }
@@ -482,46 +474,44 @@ contract TuiChainMarket is Ownable
         uint256 _amountTokens,
         uint256 _priceAttoDaiPerToken,
         uint256 _feeAttoDaiPerNanoDai
-        ) external
-    {
+    ) external {
         // checks
 
         require(tokenIsAllowed[_token], "_token not allowed by the market");
         require(_amountTokens > 0, "_amountTokens is zero");
 
         require(
-            sellPositions.exists({ _token: _token, _seller: _seller }),
+            sellPositions.exists({_token: _token, _seller: _seller}),
             "sell position does not exist"
-            );
+        );
 
-        uint256 priceNanoDaiPerToken = _attoDaiToPositiveWholeNanoDai({
-            _attoDai: _priceAttoDaiPerToken
-            });
+        uint256 priceNanoDaiPerToken =
+            _attoDaiToPositiveWholeNanoDai({_attoDai: _priceAttoDaiPerToken});
 
         TuiChainMarketLib.SellPosition storage position =
-            sellPositions.get({ _token: _token, _seller: _seller });
+            sellPositions.get({_token: _token, _seller: _seller});
 
         require(
             _amountTokens <= position.amountTokens,
             "_amountTokens exceeds amount for sale"
-            );
+        );
 
         require(
             priceNanoDaiPerToken == position.priceNanoDaiPerToken,
             "_priceAttoDaiPerToken does not match the current price"
-            );
+        );
 
         require(
             _feeAttoDaiPerNanoDai == feeAttoDaiPerNanoDai,
             "_feeAttoDaiPerNanoDai does not match the current fee"
-            );
+        );
 
         // effects
 
         position.amountTokens = position.amountTokens.sub(_amountTokens);
 
         if (position.amountTokens == 0)
-            sellPositions.remove({ _token: _token, _seller: _seller });
+            sellPositions.remove({_token: _token, _seller: _seller});
 
         uint256 priceAttoDai = _priceAttoDaiPerToken.mul(_amountTokens);
         uint256 feeAttoDai = feeAttoDaiPerNanoDai.mul(priceAttoDai.div(1e9));
@@ -533,7 +523,7 @@ contract TuiChainMarket is Ownable
             amountTokens: _amountTokens,
             priceAttoDaiPerToken: _priceAttoDaiPerToken,
             totalFeeAttoDai: feeAttoDai
-            });
+        });
 
         // interactions
 
@@ -541,15 +531,15 @@ contract TuiChainMarket is Ownable
             from: msg.sender,
             to: _seller,
             value: priceAttoDai
-            });
+        });
 
         dai.safeTransferFrom({
             from: msg.sender,
             to: feeRecipient,
             value: feeAttoDai
-            });
+        });
 
-        _token.safeTransfer({ to: msg.sender, value: _amountTokens });
+        _token.safeTransfer({to: msg.sender, value: _amountTokens});
     }
 }
 

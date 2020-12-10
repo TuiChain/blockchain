@@ -14,8 +14,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
  *
  * Note that decimals() returns 0 for these tokens.
  */
-contract TuiChainToken is ERC20Burnable
-{
+contract TuiChainToken is ERC20Burnable {
     /** The loan contract to which this token contract pertains. */
     TuiChainLoan public immutable loan;
 
@@ -29,14 +28,13 @@ contract TuiChainToken is ERC20Burnable
      * @param _loan The loan contract to which the token pertains
      * @param _totalSupply The token's total supply
      */
-    constructor(TuiChainLoan _loan, uint256 _totalSupply) public ERC20("", "")
-    {
+    constructor(TuiChainLoan _loan, uint256 _totalSupply) public ERC20("", "") {
         require(_loan != TuiChainLoan(0), "_loan is the zero address");
 
         loan = _loan;
 
-        _setupDecimals({ decimals_: 0 });
-        _mint({ account: address(_loan), amount: _totalSupply });
+        _setupDecimals({decimals_: 0});
+        _mint({account: address(_loan), amount: _totalSupply});
     }
 }
 

@@ -13,8 +13,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
  * Implements a data structure to store sell positions, allowing lookup by
  * token-seller pairs and iteration.
  */
-library TuiChainMarketLib
-{
+library TuiChainMarketLib {
     using SafeMath for uint256;
 
     /* ---------------------------------------------------------------------- */
@@ -29,11 +28,9 @@ library TuiChainMarketLib
      * @param amountTokens The amount of tokens that are up for sale
      * @param priceNanoDaiPerToken The selling price, in nano-Dai per token
      */
-    struct SellPosition
-    {
+    struct SellPosition {
         TuiChainToken token;
         address seller;
-
         uint256 amountTokens;
         uint256 priceNanoDaiPerToken;
     }
@@ -45,8 +42,7 @@ library TuiChainMarketLib
      *     sellPositions array, incremented by one; maps token and seller
      *     addresses that don't correspond to an existing sell position to zero
      */
-    struct SellPositions
-    {
+    struct SellPositions {
         SellPosition[] values;
         mapping(TuiChainToken => mapping(address => uint256)) indices;
     }
@@ -59,7 +55,9 @@ library TuiChainMarketLib
      * @return _count The number of existing sell positions
      */
     function count(SellPositions storage _self)
-        internal view returns (uint256 _count)
+        internal
+        view
+        returns (uint256 _count)
     {
         return _self.values.length;
     }
@@ -73,7 +71,9 @@ library TuiChainMarketLib
      * @return _position The sell position
      */
     function at(SellPositions storage _self, uint256 _index)
-        internal view returns (SellPosition storage _position)
+        internal
+        view
+        returns (SellPosition storage _position)
     {
         return _self.values[_index];
     }
@@ -90,8 +90,7 @@ library TuiChainMarketLib
         SellPositions storage _self,
         TuiChainToken _token,
         address _seller
-        ) internal view returns (bool _exists)
-    {
+    ) internal view returns (bool _exists) {
         return _self.indices[_token][_seller] != 0;
     }
 
@@ -106,8 +105,7 @@ library TuiChainMarketLib
         SellPositions storage _self,
         TuiChainToken _token,
         address _seller
-        ) internal view returns (SellPosition storage _position)
-    {
+    ) internal view returns (SellPosition storage _position) {
         return _self.values[_self.indices[_token][_seller].sub(1)];
     }
 
@@ -128,8 +126,7 @@ library TuiChainMarketLib
         address _seller,
         uint256 _amountTokens,
         uint256 _priceNanoDaiPerToken
-        ) internal
-    {
+    ) internal {
         require(_self.indices[_token][_seller] == 0, "sell position exists");
 
         // add position to array of all positions
@@ -140,8 +137,8 @@ library TuiChainMarketLib
                 seller: _seller,
                 amountTokens: _amountTokens,
                 priceNanoDaiPerToken: _priceNanoDaiPerToken
-                })
-            );
+            })
+        );
 
         // add entry mapping token and seller to index of position + 1
 
@@ -161,8 +158,7 @@ library TuiChainMarketLib
         SellPositions storage _self,
         TuiChainToken _token,
         address _seller
-        ) internal
-    {
+    ) internal {
         uint256 index = _self.indices[_token][_seller].sub(1);
 
         SellPosition storage last = _self.values[_self.values.length - 1];

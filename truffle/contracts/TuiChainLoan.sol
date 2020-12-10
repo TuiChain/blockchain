@@ -14,8 +14,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 /* -------------------------------------------------------------------------- */
 
 /** Manages the entire life cycle of a loan. */
-contract TuiChainLoan is Ownable
-{
+contract TuiChainLoan is Ownable {
     using SafeERC20 for IERC20;
     using SafeERC20 for TuiChainToken;
     using SafeMath for uint256;
@@ -36,7 +35,7 @@ contract TuiChainLoan is Ownable
      * @param Finalized Student is exempt from any further payments, token
      *     owners may redeem them for Dai
      */
-    enum Phase { Funding, Expired, Canceled, Active, Finalized }
+    enum Phase {Funding, Expired, Canceled, Active, Finalized}
 
     /**
      * Emitted whenever the loan's phase is updated.
@@ -59,7 +58,7 @@ contract TuiChainLoan is Ownable
         address funder,
         uint256 providedFundsAttoDai,
         uint256 newTotalFundedAttoDai
-        );
+    );
 
     /**
      * Emitted whenever funds are withdrawn.
@@ -75,7 +74,7 @@ contract TuiChainLoan is Ownable
         address funder,
         uint256 withdrawnFundsAttoDai,
         uint256 newTotalFundedAttoDai
-        );
+    );
 
     /**
      * Emitted whenever a payment is made.
@@ -89,7 +88,7 @@ contract TuiChainLoan is Ownable
         address payer,
         uint256 paymentAttoDai,
         uint256 newTotalPaidAttoDai
-        );
+    );
 
     /**
      * Emitted whenever tokens are redeemed.
@@ -181,30 +180,28 @@ contract TuiChainLoan is Ownable
         uint256 _fundingFeeAttoDaiPerDai,
         uint256 _paymentFeeAttoDaiPerDai,
         uint256 _requestedValueAttoDai
-        ) public
-    {
+    ) public {
         require(_dai != IERC20(0), "_dai is the zero address");
 
         require(
             _controller != TuiChainController(0),
             "_controller is the zero address"
-            );
+        );
 
         require(
             _feeRecipient != address(0),
             "_feeRecipient is the zero address"
-            );
+        );
 
         require(
             _loanRecipient != address(0),
             "_loanRecipient is the zero address"
-            );
+        );
 
         require(_secondsToExpiration > 0, "_secondsToExpiration is zero");
 
-        uint256 _requestedValueDai = _attoDaiToPositiveWholeDai({
-            _attoDai: _requestedValueAttoDai
-            });
+        uint256 _requestedValueDai =
+            _attoDaiToPositiveWholeDai({_attoDai: _requestedValueAttoDai});
 
         dai = _dai;
         controller = _controller;
@@ -220,7 +217,7 @@ contract TuiChainLoan is Ownable
         token = new TuiChainToken({
             _loan: this,
             _totalSupply: _requestedValueDai
-            });
+        });
 
         phase = Phase.Funding;
         fundedDai = 0;
@@ -239,12 +236,14 @@ contract TuiChainLoan is Ownable
      * @return _dai The output value, in Dai
      */
     function _attoDaiToPositiveWholeDai(uint256 _attoDai)
-        private pure returns (uint256 _dai)
+        private
+        pure
+        returns (uint256 _dai)
     {
         require(
             _attoDai > 0 && _attoDai.mod(1e18) == 0,
             "not a positive multiple of 1 Dai"
-            );
+        );
 
         return _attoDai.div(1e18);
     }
@@ -254,20 +253,18 @@ contract TuiChainLoan is Ownable
      *
      * @param _newPhase The new phase
      */
-    function _updatePhase(Phase _newPhase) private
-    {
+    function _updatePhase(Phase _newPhase) private {
         assert(phase != _newPhase);
 
         phase = _newPhase;
 
-        emit PhaseUpdated({ newPhase: _newPhase });
+        emit PhaseUpdated({newPhase: _newPhase});
     }
 
     /** If applicable, expire the loan. */
-    function _tryExpire() private
-    {
+    function _tryExpire() private {
         if (phase == Phase.Funding && block.timestamp >= expirationTime)
-            _updatePhase({ _newPhase: Phase.Expired });
+            _updatePhase({_newPhase: Phase.Expired});
     }
 
     /* ---------------------------------------------------------------------- */
@@ -279,8 +276,7 @@ contract TuiChainLoan is Ownable
      *
      * Only the owner can invoke this function.
      */
-    function cancel() external onlyOwner
-    {
+    function cancel() external onlyOwner {
         _tryExpire();
 
         // checks
@@ -289,7 +285,7 @@ contract TuiChainLoan is Ownable
 
         // effects
 
-        _updatePhase({ _newPhase: Phase.Canceled });
+        _updatePhase({_newPhase: Phase.Canceled});
     }
 
     /**
@@ -299,15 +295,14 @@ contract TuiChainLoan is Ownable
      *
      * Only the owner can invoke this function.
      */
-    function finalize() external onlyOwner
-    {
+    function finalize() external onlyOwner {
         // checks
 
         require(phase == Phase.Active, "wrong phase");
 
         // effects
 
-        _updatePhase({ _newPhase: Phase.Finalized });
+        _updatePhase({_newPhase: Phase.Finalized});
 
         attoDaiPerToken = paidDai.mul(1e18).div(requestedValueDai);
     }
@@ -322,14 +317,13 @@ contract TuiChainLoan is Ownable
      * @return _expired true if the loan becomes or already was expired, false
      *     otherwise
      */
-    function checkExpiration() external returns (bool _expired)
-    {
+    function checkExpiration() external returns (bool _expired) {
         _tryExpire();
 
         require(
             phase == Phase.Funding || phase == Phase.Expired,
             "wrong phase"
-            );
+        );
 
         return phase == Phase.Expired;
     }
@@ -348,22 +342,20 @@ contract TuiChainLoan is Ownable
      * @param _valueAttoDai Amount of funds to provide (excluding fees) in
      *     atto-Dai
      */
-    function provideFunds(uint256 _valueAttoDai) external
-    {
+    function provideFunds(uint256 _valueAttoDai) external {
         _tryExpire();
 
         // checks
 
         require(phase == Phase.Funding, "wrong phase");
 
-        uint256 valueDai = _attoDaiToPositiveWholeDai({
-            _attoDai: _valueAttoDai
-            });
+        uint256 valueDai =
+            _attoDaiToPositiveWholeDai({_attoDai: _valueAttoDai});
 
         require(
             fundedDai.add(valueDai) <= requestedValueDai,
             "_valueAttoDai exceeds remaining requested funding"
-            );
+        );
 
         // effects
 
@@ -373,10 +365,10 @@ contract TuiChainLoan is Ownable
             funder: msg.sender,
             providedFundsAttoDai: _valueAttoDai,
             newTotalFundedAttoDai: fundedDai.mul(1e18)
-            });
+        });
 
         if (fundedDai == requestedValueDai)
-            _updatePhase({ _newPhase: Phase.Active });
+            _updatePhase({_newPhase: Phase.Active});
 
         // interactions
 
@@ -386,21 +378,20 @@ contract TuiChainLoan is Ownable
             from: msg.sender,
             to: address(this),
             value: _valueAttoDai.add(feeAttoDai)
-            });
+        });
 
-        token.safeTransfer({ to: msg.sender, value: valueDai });
+        token.safeTransfer({to: msg.sender, value: valueDai});
 
-        if (fundedDai == requestedValueDai)
-        {
+        if (fundedDai == requestedValueDai) {
             dai.safeTransfer({
                 to: loanRecipient,
                 value: requestedValueDai.mul(1e18)
-                });
+            });
 
             dai.safeTransfer({
                 to: feeRecipient,
                 value: fundingFeeAttoDaiPerDai.mul(requestedValueDai)
-                });
+            });
 
             controller.notifyLoanActivation();
         }
@@ -420,21 +411,20 @@ contract TuiChainLoan is Ownable
      * @param _valueAttoDai Amount of funds to withdraw (excluding fees) in
      *     atto-Dai
      */
-    function withdrawFunds(uint256 _valueAttoDai) external
-    {
+    function withdrawFunds(uint256 _valueAttoDai) external {
         _tryExpire();
 
         // checks
 
         require(
-            phase == Phase.Funding || phase == Phase.Expired
-                || phase == Phase.Canceled,
+            phase == Phase.Funding ||
+                phase == Phase.Expired ||
+                phase == Phase.Canceled,
             "wrong phase"
-            );
+        );
 
-        uint256 valueDai = _attoDaiToPositiveWholeDai({
-            _attoDai: _valueAttoDai
-            });
+        uint256 valueDai =
+            _attoDaiToPositiveWholeDai({_attoDai: _valueAttoDai});
 
         // effects
 
@@ -444,7 +434,7 @@ contract TuiChainLoan is Ownable
             funder: msg.sender,
             withdrawnFundsAttoDai: _valueAttoDai,
             newTotalFundedAttoDai: fundedDai.mul(1e18)
-            });
+        });
 
         // interactions
 
@@ -453,13 +443,13 @@ contract TuiChainLoan is Ownable
         dai.safeTransfer({
             to: msg.sender,
             value: _valueAttoDai.add(feeAttoDai)
-            });
+        });
 
         token.safeTransferFrom({
             from: msg.sender,
             to: address(this),
             value: valueDai
-            });
+        });
     }
 
     /**
@@ -474,15 +464,13 @@ contract TuiChainLoan is Ownable
      *
      * @param _valueAttoDai Payment value (excluding fees) in atto-Dai
      */
-    function makePayment(uint256 _valueAttoDai) external
-    {
+    function makePayment(uint256 _valueAttoDai) external {
         // checks
 
         require(phase == Phase.Active, "wrong phase");
 
-        uint256 valueDai = _attoDaiToPositiveWholeDai({
-            _attoDai: _valueAttoDai
-            });
+        uint256 valueDai =
+            _attoDaiToPositiveWholeDai({_attoDai: _valueAttoDai});
 
         // effects
 
@@ -492,7 +480,7 @@ contract TuiChainLoan is Ownable
             payer: msg.sender,
             paymentAttoDai: _valueAttoDai,
             newTotalPaidAttoDai: paidDai.mul(1e18)
-            });
+        });
 
         // interactions
 
@@ -502,9 +490,9 @@ contract TuiChainLoan is Ownable
             from: msg.sender,
             to: address(this),
             value: _valueAttoDai.add(feeAttoDai)
-            });
+        });
 
-        dai.safeTransfer({ to: feeRecipient, value: feeAttoDai });
+        dai.safeTransfer({to: feeRecipient, value: feeAttoDai});
     }
 
     /**
@@ -514,8 +502,7 @@ contract TuiChainLoan is Ownable
      *
      * @param _amountTokens Number of tokens to redeem
      */
-    function redeemTokens(uint256 _amountTokens) external
-    {
+    function redeemTokens(uint256 _amountTokens) external {
         // checks
 
         require(phase == Phase.Finalized, "wrong phase");
@@ -526,16 +513,16 @@ contract TuiChainLoan is Ownable
         emit TokensRedeemed({
             redeemer: msg.sender,
             amountTokens: _amountTokens
-            });
+        });
 
         // interactions
 
-        token.burnFrom({ account: msg.sender, amount: _amountTokens });
+        token.burnFrom({account: msg.sender, amount: _amountTokens});
 
         dai.safeTransfer({
             to: msg.sender,
             value: attoDaiPerToken.mul(_amountTokens)
-            });
+        });
     }
 }
 
