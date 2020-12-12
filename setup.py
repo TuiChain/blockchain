@@ -47,7 +47,7 @@ def generate_contract_module() -> None:
 
     # generate module
 
-    with open("tuichain/_contracts.py", mode="w") as f:
+    with open("tuichain_ethereum/_contracts.py", mode="w") as f:
 
         f.write("import typing as _t\n")
 
@@ -74,14 +74,14 @@ def add_contract(
 # ---------------------------------------------------------------------------- #
 
 setuptools.setup(
-    name="tuichain-ethereum",
+    name="tuichain_ethereum",
     cmdclass={
         "build_py": CustomBuildPyCommand,
         "develop": CustomDevelopCommand,
         "sdist": CustomSdistCommand,
     },
-    packages=setuptools.find_packages(include=["tuichain*"]),
-    package_data={"tuichain": ["py.typed"]},  # as per PEP 561
+    packages=setuptools.find_packages(include=["tuichain_ethereum*"]),
+    package_data={"tuichain_ethereum": ["py.typed"]},  # as per PEP 561
     python_requires="~=3.8",
     install_requires=["web3~=5.13"],
     extras_require={

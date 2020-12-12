@@ -1,1 +1,1 @@
-include tuichain/py.typed
+include tuichain_ethereum/py.typed
