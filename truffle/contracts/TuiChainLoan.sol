@@ -128,8 +128,8 @@ contract TuiChainLoan is Ownable {
     /** Payment fee, in atto-Dai per Dai. */
     uint256 public immutable paymentFeeAttoDaiPerDai;
 
-    /** Requested loan value, in atto-Dai. */
-    uint256 public immutable requestedValueDai;
+    /** @dev Requested loan value, in Dai. */
+    uint256 private immutable requestedValueDai;
 
     /** The ERC-20 contract implementing the loan's token. */
     TuiChainToken public immutable token;
@@ -137,23 +137,21 @@ contract TuiChainLoan is Ownable {
     /** The current phase of the loan. */
     Phase public phase;
 
-    /**
-     * How much Dai has been funded.
-     *
-     * This may increase and decrease while in phase Funding, and equals
-     * requestedValueDai when in phase Active or Finalized.
-     */
-    uint256 public fundedDai;
+    /** @dev How much Dai has currently been funded. */
+    uint256 private fundedValueDai;
 
-    /** How much Dai has been paid by the student (or anyone, really) so far. */
-    uint256 public paidDai;
+    /**
+     * @dev How much Dai has been paid by the student (or anyone, really) so
+     * far.
+     */
+    uint256 private paidValueDai;
 
     /**
      * How much atto-Dai a token can be redeemed for.
      *
-     * This is zero is every phase but Finalized.
+     * This is zero in every phase but Finalized.
      */
-    uint256 public attoDaiPerToken;
+    uint256 public redemptionValueAttoDaiPerToken;
 
     /* ---------------------------------------------------------------------- */
 
@@ -220,9 +218,9 @@ contract TuiChainLoan is Ownable {
         });
 
         phase = Phase.Funding;
-        fundedDai = 0;
-        paidDai = 0;
-        attoDaiPerToken = 0;
+        fundedValueDai = 0;
+        paidValueDai = 0;
+        redemptionValueAttoDaiPerToken = 0;
     }
 
     /* ---------------------------------------------------------------------- */
@@ -304,10 +302,55 @@ contract TuiChainLoan is Ownable {
 
         _updatePhase({_newPhase: Phase.Finalized});
 
-        attoDaiPerToken = paidDai.mul(1e18).div(requestedValueDai);
+        redemptionValueAttoDaiPerToken = paidValueDai.mul(1e18).div(
+            requestedValueDai
+        );
     }
 
     /* ---------------------------------------------------------------------- */
+
+    /**
+     * Return the requested loan value, in atto-Dai.
+     *
+     * @return _requestedValueAttoDai the requested loan value, in atto-Dai
+     */
+    function requestedValueAttoDai()
+        external
+        view
+        returns (uint256 _requestedValueAttoDai)
+    {
+        return requestedValueDai.mul(1e18);
+    }
+
+    /**
+     * Return the value that has currently been funded, in atto-Dai.
+     *
+     * This may increase and decrease while in phase Funding, and equals
+     * requestedValueAttoDai() when in phase Active or Finalized.
+     *
+     * @return _fundedValueAttoDai the value that has been funded, in atto-Dai
+     */
+    function fundedValueAttoDai()
+        external
+        view
+        returns (uint256 _fundedValueAttoDai)
+    {
+        return fundedValueDai.mul(1e18);
+    }
+
+    /**
+     * Return the value that has been paid so far, in atto-Dai.
+     *
+     * @return _paidValueAttoDai the value that has been paid so far, in
+     *     atto-Dai
+     */
+    function paidValueAttoDai()
+        external
+        view
+        returns (uint256 _paidValueAttoDai)
+    {
+        return paidValueDai.mul(1e18);
+    }
 
     /**
      * Expire the loan if the funding deadline has passed.
@@ -353,21 +396,21 @@ contract TuiChainLoan is Ownable {
             _attoDaiToPositiveWholeDai({_attoDai: _valueAttoDai});
 
         require(
-            fundedDai.add(valueDai) <= requestedValueDai,
+            fundedValueDai.add(valueDai) <= requestedValueDai,
             "_valueAttoDai exceeds remaining requested funding"
         );
 
         // effects
 
-        fundedDai = fundedDai.add(valueDai);
+        fundedValueDai = fundedValueDai.add(valueDai);
 
         emit FundsProvided({
             funder: msg.sender,
             providedFundsAttoDai: _valueAttoDai,
-            newTotalFundedAttoDai: fundedDai.mul(1e18)
+            newTotalFundedAttoDai: fundedValueDai.mul(1e18)
         });
 
-        if (fundedDai == requestedValueDai)
+        if (fundedValueDai == requestedValueDai)
             _updatePhase({_newPhase: Phase.Active});
 
         // interactions
@@ -382,7 +425,7 @@ contract TuiChainLoan is Ownable {
 
         token.safeTransfer({to: msg.sender, value: valueDai});
 
-        if (fundedDai == requestedValueDai) {
+        if (fundedValueDai == requestedValueDai) {
             dai.safeTransfer({
                 to: loanRecipient,
                 value: requestedValueDai.mul(1e18)
@@ -428,12 +471,12 @@ contract TuiChainLoan is Ownable {
 
         // effects
 
-        fundedDai = fundedDai.sub(valueDai);
+        fundedValueDai = fundedValueDai.sub(valueDai);
 
         emit FundsWithdrawn({
             funder: msg.sender,
             withdrawnFundsAttoDai: _valueAttoDai,
-            newTotalFundedAttoDai: fundedDai.mul(1e18)
+            newTotalFundedAttoDai: fundedValueDai.mul(1e18)
         });
 
         // interactions
@@ -474,12 +517,12 @@ contract TuiChainLoan is Ownable {
 
         // effects
 
-        paidDai = paidDai.add(valueDai);
+        paidValueDai = paidValueDai.add(valueDai);
 
         emit PaymentMade({
             payer: msg.sender,
             paymentAttoDai: _valueAttoDai,
-            newTotalPaidAttoDai: paidDai.mul(1e18)
+            newTotalPaidAttoDai: paidValueDai.mul(1e18)
         });
 
         // interactions
@@ -521,7 +564,7 @@ contract TuiChainLoan is Ownable {
 
         dai.safeTransfer({
             to: msg.sender,
-            value: attoDaiPerToken.mul(_amountTokens)
+            value: redemptionValueAttoDaiPerToken.mul(_amountTokens)
         });
     }
 }

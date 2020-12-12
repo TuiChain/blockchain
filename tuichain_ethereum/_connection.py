@@ -688,7 +688,7 @@ class Loan:
     @_functools.cached_property
     def requested_value_atto_dai(self) -> int:
         """Requested loan value, in atto-Dai."""
-        return (10 ** 18) * int(self.__loan.caller.requestedValueDai())
+        return int(self.__loan.caller.requestedValueAttoDai())
 
     def get_state(self) -> LoanState:
         """
@@ -709,14 +709,14 @@ class Loan:
 
         return LoanState(
             phase=phase,
-            funded_value_atto_dai=(10 ** 18) * int(caller.fundedDai()),
+            funded_value_atto_dai=int(caller.fundedValueAttoDai()),
             paid_value_atto_dai=(
-                (10 ** 18) * int(caller.paidDai())
+                int(caller.paidValueAttoDai())
                 if phase in [LoanPhase.ACTIVE, LoanPhase.FINALIZED]
                 else None
             ),
             atto_dai_per_token=(
-                int(caller.attoDaiPerToken())
+                int(caller.redemptionValueAttoDaiPerToken())
                 if phase is LoanPhase.FINALIZED
                 else None
             ),
