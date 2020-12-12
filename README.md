@@ -55,6 +55,7 @@ Synopsis of provided types:
 
   - `Controller` - represents an instance of the *controller* contract
   - `Market` - represents an instance of the *market* contract
+  - `Loans` - represents a collection of instances of the *loan* contract
   - `Loan` - represents an instance of the *loan* contract
 
 Deploy an instance of TuiChain's Ethereum infrastructure with `Controller.deploy()` or connect to an existing controller contract with `Controller()` and go from there.

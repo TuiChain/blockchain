@@ -106,11 +106,11 @@ def controller(
     _ = controller.contract_address
     _ = controller.market
 
-    assert not tuple(controller.get_all_loans())
-    assert not tuple(controller.get_loans_by_recipient(users[0]))
+    assert not tuple(controller.loans.get_all())
+    assert not tuple(controller.loans.get_by_recipient(users[0]))
 
     assert (
-        controller.get_loan_by_identifier(
+        controller.loans.get_by_identifier(
             tui.LoanIdentifier(secrets.token_bytes(20))
         )
         is None
@@ -135,7 +135,7 @@ def loan(
     users: typing.Sequence[tui.Address],
 ) -> tui.Loan:
 
-    tx_create = controller.create_loan(
+    tx_create = controller.loans.create(
         recipient_address=users[0],
         time_to_expiration=datetime.timedelta(minutes=1),
         funding_fee_atto_dai_per_dai=5 * (10 ** 16),
