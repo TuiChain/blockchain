@@ -10,6 +10,7 @@ import math as _math
 import typing as _t
 
 import eth_utils as _eth_utils
+import web3 as _web3
 import web3.contract as _web3_contract
 import web3.logs as _web3_logs
 import web3.types as _web3_types
@@ -25,49 +26,58 @@ class LoanIdentifier:
     """
     Identifies a loan.
 
-    Instances of this type are convertible to bytes, equality comparable, and
-    hashable.
+    Instances of this type are equality comparable and hashable.
     """
 
-    __identifier: bytes
+    @classmethod
+    def _random(cls) -> LoanIdentifier:
+        """(private, do not use)"""
+        return LoanIdentifier(str(Address._random()))
 
-    def __init__(self, identifier: bytes) -> None:
+    __address: _web3_types.ChecksumAddress
+
+    def __init__(self, identifier: str) -> None:
         """
-        Initialize a loan identifier from its representation as a sequence of 20
-        bytes.
+        Initialize a loan identifier from its string representation.
 
-        :param identifier: the loan identifier's representation
+        :param identifier: the loan identifier's string representation
 
-        :raise ValueError: if ``identifier`` is not 20 bytes in length
-        :raise ValueError: if all bytes in ``identifier`` are zero
+        :raise ValueError: if ``identifier`` is not a valid loan identifier
         """
 
-        assert isinstance(identifier, bytes)
+        assert isinstance(identifier, str)
 
-        if len(identifier) != 20:
-            raise ValueError("`identifier` must be 32 bytes in length")
+        if not _web3.Web3.isAddress(identifier):
+            raise ValueError(f"Invalid loan identifier {identifier!r}")
 
-        if identifier == b"\0" * 20:
-            raise ValueError("`identifier` must not be zero")
+        if not _web3.Web3.isChecksumAddress(identifier):
+            raise ValueError(f"Invalid loan identifier {identifier!r}")
 
-        self.__identifier = bytes(identifier)
+        self.__address = _web3.Web3.toChecksumAddress(identifier)
 
-    def __bytes__(self) -> bytes:
-        """Return this loan identifier's representation as a sequence of 20
-        bytes."""
-        return self.__identifier
+        if str(self.__address) == "0x0000000000000000000000000000000000000000":
+            raise ValueError(f"Invalid loan identifier {identifier!r}")
+
+    def __str__(self) -> str:
+        """Return this loan identifier's string representation, which is always
+        42 ASCII alphanumeric characters long."""
+        return str(self.__address)
 
     def __eq__(self, other: _t.Any) -> bool:
         return (
-            type(other) is LoanIdentifier
-            and self.__identifier == other.__identifier
+            type(other) is LoanIdentifier and self.__address == other.__address
         )
 
     def __hash__(self) -> int:
-        return hash(self.__identifier)
+        return hash(self.__address)
 
     def __repr__(self) -> str:
-        return f"LoanIdentifier({self.__identifier!r})"
+        return f"LoanIdentifier({str(self.__address)!r})"
+
+    @property
+    def _checksummed(self) -> _web3_types.ChecksumAddress:
+        """(private, do not use)"""
+        return self.__address
 
 
 # ---------------------------------------------------------------------------- #
@@ -133,42 +143,21 @@ class LoanState:
 # ---------------------------------------------------------------------------- #
 
 
-class InvalidLoanPhaseError(ValueError):
-    """An error caused by a loan not being in the expected phase."""
+def _wrong_phase_error(
+    observed: LoanPhase, allowed: _t.Iterable[LoanPhase]
+) -> ValueError:
 
-    __observed: LoanPhase
-    __allowed: _t.AbstractSet[LoanPhase]
+    allowed_set = frozenset(allowed)
 
-    def __init__(
-        self, observed: LoanPhase, allowed: _t.Iterable[LoanPhase]
-    ) -> None:
-        """
-        :param observed: the phase in which the loan was actually in
-        :param allowed: phases in which the loan was allowed to be in
-        """
+    assert allowed_set
+    assert observed not in allowed_set
 
-        self.__observed = observed
-        self.__allowed = frozenset(allowed)
+    sorted_allowed = sorted(allowed_set, key=lambda p: int(p.value))
 
-        assert self.__allowed
-        assert observed not in self.__allowed
-
-        sorted_allowed = sorted(self.__allowed, key=lambda p: int(p.value))
-
-        super().__init__(
-            f"Loan is in phase {observed.name}, expected"
-            f" {', '.join(p.name for p in sorted_allowed)}."
-        )
-
-    @property
-    def observed(self) -> LoanPhase:
-        """The phase in which the loan was observed to be."""
-        return self.__observed
-
-    @property
-    def allowed(self) -> _t.AbstractSet[LoanPhase]:
-        """The phases in which the loan was allowed to be."""
-        return self.__allowed
+    return ValueError(
+        f"Loan is in phase {observed.name}, expected"
+        f" {', '.join(p.name for p in sorted_allowed)}"
+    )
 
 
 # ---------------------------------------------------------------------------- #
@@ -203,7 +192,7 @@ class Loans:
 
             yield Loan(
                 controller=self.__controller,
-                loan_contract_address=caller.loans(i),
+                identifier=LoanIdentifier(caller.loans(i)),
             )
 
     def get_by_recipient(self, recipient_address: Address) -> _t.Iterable[Loan]:
@@ -225,30 +214,25 @@ class Loans:
             if loan.recipient_address == recipient_address
         )
 
-    def get_by_identifier(
-        self, identifier: LoanIdentifier
-    ) -> _t.Optional[Loan]:
-        """Return the loan with the given identifier, or ``None`` if no such
-        loan exists."""
+    def get_by_identifier(self, identifier: LoanIdentifier) -> Loan:
+        """
+        Return the loan with the given identifier.
+
+        :raise ValueError: if no such loan exists
+        """
 
         assert isinstance(identifier, LoanIdentifier)
 
-        if self.__controller._contract.caller.loanIsValid(bytes(identifier)):
+        if not self.__controller._contract.caller.loanIsValid(str(identifier)):
+            raise ValueError(f"No loan with identifier {identifier}")
 
-            return Loan(
-                controller=self.__controller,
-                loan_contract_address=bytes(identifier),
-            )
-
-        else:
-
-            return None
+        return Loan(controller=self.__controller, identifier=identifier)
 
     def create(
         self,
-        *,
         recipient_address: Address,
         time_to_expiration: _datetime.timedelta,
+        *,
         funding_fee_atto_dai_per_dai: int,
         payment_fee_atto_dai_per_dai: int,
         requested_value_atto_dai: int,
@@ -256,7 +240,7 @@ class Loans:
         """
         Create a loan.
 
-        Parameters are keyword-only to prevent mistakes.
+        Currency parameters are keyword-only to prevent mistakes.
 
         This action may use up some ether from the master account.
 
@@ -267,10 +251,10 @@ class Loans:
         :param funding_fee_atto_dai_per_dai: funding fee, in atto-Dai per Dai
         :param payment_fee_atto_dai_per_dai: payment fee, in atto-Dai per Dai.
         :param requested_value_atto_dai: requested loan value, in atto-Dai
+
         :return: the corresponding transaction, whose result is a handle to the
             created loan
 
-        :raise ValueError: if ``recipient_address`` is the zero address
         :raise ValueError: if ``time_to_expiration`` is not positive
         :raise ValueError: if ``funding_fee_atto_dai_per_dai`` is negative
         :raise ValueError: if ``payment_fee_atto_dai_per_dai`` is negative
@@ -286,28 +270,26 @@ class Loans:
         assert isinstance(payment_fee_atto_dai_per_dai, int)
         assert isinstance(requested_value_atto_dai, int)
 
-        if recipient_address == Address._ZERO:
-            raise ValueError("recipient_address must not be the zero address")
-
         if time_to_expiration <= _datetime.timedelta():
-            raise ValueError("time_to_expiration must be positive")
+            raise ValueError("`time_to_expiration` must be positive")
 
         if funding_fee_atto_dai_per_dai < 0:
             raise ValueError(
-                "funding_fee_atto_dai_per_dai must not be negative"
+                "`funding_fee_atto_dai_per_dai` must not be negative"
             )
 
         if payment_fee_atto_dai_per_dai < 0:
             raise ValueError(
-                "payment_fee_atto_dai_per_dai must not be negative"
+                "`payment_fee_atto_dai_per_dai` must not be negative"
             )
 
-        if requested_value_atto_dai <= 0:
-            raise ValueError("requested_value_atto_dai must be positive")
-
-        if requested_value_atto_dai % (10 ** 18) != 0:
+        if (
+            requested_value_atto_dai <= 0
+            or requested_value_atto_dai % (10 ** 18) != 0
+        ):
             raise ValueError(
-                "requested_value_atto_dai must be a multiple of 1 Dai"
+                "`requested_value_atto_dai` must be a positive multiple of 1"
+                " Dai"
             )
 
         # send loan creation transaction
@@ -342,12 +324,18 @@ class Loans:
 
             return Loan(
                 controller=self.__controller,
-                loan_contract_address=events[0].args.loan,
+                identifier=LoanIdentifier(events[0].args.loan),
             )
 
         return Transaction._real(
             w3=self.__controller._w3, tx_hash=tx_hash, on_success=on_success
         )
+
+    def __eq__(self, other: _t.Any) -> bool:
+        raise NotImplementedError
+
+    def __hash__(self) -> int:
+        raise NotImplementedError
 
 
 # ---------------------------------------------------------------------------- #
@@ -365,17 +353,11 @@ class Loan:
     __identifier: LoanIdentifier
 
     def __init__(
-        self,
-        controller: Controller,
-        loan_contract_address: _t.AnyStr,
+        self, controller: Controller, identifier: LoanIdentifier
     ) -> None:
         """(private, do not use)"""
-
         self.__controller = controller
-
-        self.__identifier = LoanIdentifier(
-            _eth_utils.to_canonical_address(loan_contract_address)
-        )
+        self.__identifier = identifier
 
     @property
     def _controller(self) -> Controller:
@@ -386,7 +368,7 @@ class Loan:
     def _contract(self) -> _web3_contract.Contract:
         """(private, do not use)"""
         return self.__controller._w3.eth.contract(
-            address=_web3_types.Address(bytes(self.__identifier)),
+            address=self.__identifier._checksummed,
             abi=_tuichain_contracts.TuiChainLoan.ABI,
         )
 
@@ -399,6 +381,11 @@ class Loan:
             ),
             abi=_tuichain_contracts.TuiChainToken.ABI,
         )
+
+    @_functools.cached_property
+    def user_transaction_builder(self) -> LoanUserTransactionBuilder:
+        """The user transaction builder for the loan."""
+        return LoanUserTransactionBuilder(loan=self)
 
     @property
     def identifier(self) -> LoanIdentifier:
@@ -495,7 +482,7 @@ class Loan:
         :return: the corresponding transaction, whose result is ``True`` if the
             loan became or already was expired, and ``False`` otherwise
 
-        :raise LoanPhaseError: if the loan is not in phase FUNDING or EXPIRED
+        :raise ValueError: if the loan is not in phase FUNDING or EXPIRED
         """
 
         # NOTE: This function avoids spending ether unless it can be certain
@@ -520,7 +507,7 @@ class Loan:
             # wrong loan phase
 
             return Transaction._fake_failed(
-                error=InvalidLoanPhaseError(
+                error=_wrong_phase_error(
                     observed=phase,
                     allowed=[LoanPhase.FUNDING, LoanPhase.EXPIRED],
                 )
@@ -565,7 +552,7 @@ class Loan:
 
         :return: the corresponding transaction
 
-        :raise LoanPhaseError: if the loan is not in phase FUNDING
+        :raise ValueError: if the loan is not in phase FUNDING
         """
 
         return self._cancel_or_finalize("cancelLoan", LoanPhase.FUNDING)
@@ -578,7 +565,7 @@ class Loan:
 
         :return: the corresponding transaction
 
-        :raise LoanPhaseError: if the loan is not in phase ACTIVE
+        :raise ValueError: if the loan is not in phase ACTIVE
         """
 
         return self._cancel_or_finalize("finalizeLoan", LoanPhase.ACTIVE)
@@ -594,7 +581,7 @@ class Loan:
 
         if phase != allowed_phase:
             return Transaction._fake_failed(
-                error=InvalidLoanPhaseError(
+                error=_wrong_phase_error(
                     observed=phase, allowed=[allowed_phase]
                 )
             )
@@ -617,7 +604,7 @@ class Loan:
             if new_phase != allowed_phase:
                 # may or may not have failed due to wrong phase, but will surely
                 # fail due to wrong phase if retried
-                raise InvalidLoanPhaseError(
+                raise _wrong_phase_error(
                     observed=new_phase, allowed=[allowed_phase]
                 )
 
@@ -627,6 +614,222 @@ class Loan:
             on_success=lambda _: None,
             on_failure=on_failure,
         )
+
+    def __eq__(self, other: _t.Any) -> bool:
+        raise NotImplementedError
+
+    def __hash__(self) -> int:
+        raise NotImplementedError
+
+
+# ---------------------------------------------------------------------------- #
+
+
+def _ensure_positive_whole_dai(name: str, atto_dai: int) -> None:
+    """(private, do not use)"""
+
+    assert isinstance(atto_dai, int)
+
+    if atto_dai <= 0 or atto_dai % (10 ** 18) != 0:
+        raise ValueError(f"`{name}` must be a positive multiple of 1 Dai")
+
+
+class LoanUserTransactionBuilder:
+    """Provides functionality to build transactions for users to interact with a
+    loan contract."""
+
+    __loan: Loan
+
+    def __init__(self, loan: Loan) -> None:
+        """(private, do not use)"""
+        self.__loan = loan
+
+    def provide_funds(
+        self, *, value_atto_dai: int
+    ) -> _t.Sequence[UserTransaction]:
+        """
+        Build a sequence of transactions for a user to provide funds to the
+        loan.
+
+        Currency parameters are keyword-only to prevent mistakes regarding
+        units.
+
+        :param value_atto_dai: the value to provide, in atto-Dai
+
+        :return: the sequence of transactions to be submitted by the user
+
+        :raise ValueError: if ``value_atto_dai`` is not a positive multiple of 1
+            Dai
+        :raise ValueError: if the loan is not in phase FUNDING
+        """
+
+        # validate arguments and state
+
+        _ensure_positive_whole_dai("value_atto_dai", value_atto_dai)
+
+        if (p := self.__loan.get_state().phase) != LoanPhase.FUNDING:
+            raise _wrong_phase_error(observed=p, allowed=[LoanPhase.FUNDING])
+
+        # build and return transactions
+
+        fee = self.__loan.funding_fee_atto_dai_per_dai
+        total_value = value_atto_dai + fee * (value_atto_dai // (10 ** 18))
+
+        return UserTransaction._build_sequence(
+            # set Dai allowance for User --> Loan transfer
+            self.__loan._controller._dai_contract.functions.approve(
+                spender=self.__loan._contract.address,
+                amount=total_value,
+            ),
+            # provide funds to loan contract, obtaining tokens
+            self.__loan._contract.functions.provideFunds(
+                _valueAttoDai=value_atto_dai
+            ),
+            # reset Dai allowance
+            self.__loan._controller._dai_contract.functions.approve(
+                spender=self.__loan._contract.address, amount=0
+            ),
+        )
+
+    def withdraw_funds(
+        self, *, value_atto_dai: int
+    ) -> _t.Sequence[UserTransaction]:
+        """
+        Build a sequence of transactions for a user to withdraw funds previously
+        provided to the loan.
+
+        Currency parameters are keyword-only to prevent mistakes regarding
+        units.
+
+        :param value_atto_dai: the value to withdraw, in atto-Dai
+
+        :return: the sequence of transactions to be submitted by the user
+
+        :raise ValueError: if ``value_atto_dai`` is not a positive multiple of 1
+            Dai
+        :raise ValueError: if the loan is not in phase FUNDING
+        """
+
+        # validate arguments and state
+
+        _ensure_positive_whole_dai("value_atto_dai", value_atto_dai)
+
+        if (p := self.__loan.get_state().phase) != LoanPhase.FUNDING:
+            raise _wrong_phase_error(observed=p, allowed=[LoanPhase.FUNDING])
+
+        # build and return transactions
+
+        amount_tokens = value_atto_dai // (10 ** 18)
+
+        return UserTransaction._build_sequence(
+            # set token allowance for User --> Loan transfer
+            self.__loan._token_contract.functions.approve(
+                spender=self.__loan._contract.address,
+                amount=amount_tokens,
+            ),
+            # withdraw funds from loan contract, returning tokens
+            self.__loan._contract.functions.withdrawFunds(
+                _valueAttoDai=value_atto_dai
+            ),
+            # reset token allowance
+            self.__loan._token_contract.functions.approve(
+                spender=self.__loan._contract.address, amount=0
+            ),
+        )
+
+    def make_payment(
+        self, *, value_atto_dai: int
+    ) -> _t.Sequence[UserTransaction]:
+        """
+        Build a sequence of transactions for a user to make a payment to the
+        loan.
+
+        Currency parameters are keyword-only to prevent mistakes regarding
+        units.
+
+        :param value_atto_dai: the payment's value, in atto-Dai
+
+        :return: the sequence of transactions to be submitted by the user
+
+        :raise ValueError: if ``value_atto_dai`` is not a positive multiple of 1
+            Dai
+        :raise ValueError: if the loan is not in phase ACTIVE
+        """
+
+        # validate arguments and state
+
+        _ensure_positive_whole_dai("value_atto_dai", value_atto_dai)
+
+        if (p := self.__loan.get_state().phase) != LoanPhase.ACTIVE:
+            raise _wrong_phase_error(observed=p, allowed=[LoanPhase.ACTIVE])
+
+        # build and return transactions
+
+        fee = self.__loan.payment_fee_atto_dai_per_dai
+        total_value = value_atto_dai + fee * (value_atto_dai // (10 ** 18))
+
+        return UserTransaction._build_sequence(
+            # set Dai allowance for User --> Loan transfer
+            self.__loan._controller._dai_contract.functions.approve(
+                spender=self.__loan._contract.address,
+                amount=total_value,
+            ),
+            # make payment
+            self.__loan._contract.functions.makePayment(
+                _valueAttoDai=value_atto_dai
+            ),
+            # reset Dai allowance
+            self.__loan._controller._dai_contract.functions.approve(
+                spender=self.__loan._contract.address, amount=0
+            ),
+        )
+
+    def redeem_tokens(self, amount_tokens: int) -> _t.Sequence[UserTransaction]:
+        """
+        Build a sequence of transactions for a user to redeem tokens previously
+        obtained by funding the loan.
+
+        :param amount_tokens: the number of tokens to redeem
+
+        :return: the sequence of transactions to be submitted by the user
+
+        :raise ValueError: if ``amount_tokens`` is not positive
+        :raise ValueError: if the loan is not in phase FINALIZED
+        """
+
+        # validate arguments and state
+
+        assert isinstance(amount_tokens, int)
+
+        if amount_tokens <= 0:
+            raise ValueError("`amount_tokens` must be positive")
+
+        if (p := self.__loan.get_state().phase) != LoanPhase.FINALIZED:
+            raise _wrong_phase_error(observed=p, allowed=[LoanPhase.FINALIZED])
+
+        # build and return transactions
+
+        return UserTransaction._build_sequence(
+            # set token allowance for User --> Loan transfer
+            self.__loan._token_contract.functions.approve(
+                spender=self.__loan._contract.address,
+                amount=amount_tokens,
+            ),
+            # return tokens to loan contract, obtaining Dai
+            self.__loan._contract.functions.redeemTokens(
+                _amountTokens=amount_tokens
+            ),
+            # reset token allowance
+            self.__loan._token_contract.functions.approve(
+                spender=self.__loan._contract.address, amount=0
+            ),
+        )
+
+    def __eq__(self, other: _t.Any) -> bool:
+        raise NotImplementedError
+
+    def __hash__(self) -> int:
+        raise NotImplementedError
 
 
 # ---------------------------------------------------------------------------- #

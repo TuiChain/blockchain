@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import datetime
-import secrets
-import typing
+import typing as t
 
 import eth_tester
 import eth_tester.backends.pyevm.main
@@ -12,7 +11,8 @@ import pytest
 import web3
 import web3.types
 
-import tuichain_ethereum as tui
+import util
+import tuichain_ethereum._test as tui
 
 # ---------------------------------------------------------------------------- #
 
@@ -24,6 +24,11 @@ eth_tester.backends.pyevm.main.GENESIS_GAS_LIMIT = 8_000_000
 
 @pytest.fixture
 def chain() -> eth_tester.EthereumTester:
+    """
+    Create an :class:`eth_eth_tester.EthereumTester` test chain.
+
+    :return: the test chain
+    """
 
     ethereum_tester = eth_tester.EthereumTester()
     ethereum_tester.disable_auto_mine_transactions()
@@ -33,6 +38,12 @@ def chain() -> eth_tester.EthereumTester:
 
 @pytest.fixture
 def w3(chain: eth_tester.EthereumTester) -> web3.Web3:
+    """
+    Create a :class:`web3.Web3` instance for the
+    :class:`eth_eth_tester.EthereumTester` test chain.
+
+    :return: the :class:`web3.Web3` instance
+    """
 
     w3 = web3.Web3(web3.EthereumTesterProvider(chain))
     w3.enable_strict_bytes_type_checking()
@@ -41,114 +52,257 @@ def w3(chain: eth_tester.EthereumTester) -> web3.Web3:
 
 
 @pytest.fixture
-def users(chain: eth_tester.EthereumTester) -> typing.Sequence[tui.Address]:
-    return tuple(map(tui.Address, chain.get_accounts()))
+def accounts(
+    chain: eth_tester.EthereumTester,
+    w3: web3.Web3,
+) -> t.Sequence[tui.PrivateKey]:
+    """
+    Create 10 accounts and credit each with 100 thousand ether.
+
+    :return: the accounts' private keys
+    """
+
+    # generate private keys
+
+    keys = tuple(tui.PrivateKey.random() for _ in range(10))
+
+    assert len(keys) <= len(chain.get_accounts())
+
+    # transfer ether to every account
+
+    for (key, user) in zip(keys, chain.get_accounts()):
+
+        chain.add_account(bytes(key).hex())
+
+        w3.eth.sendTransaction(
+            {
+                "from": user,
+                "to": key.address._checksummed,
+                "value": web3.Web3.toWei(100_000, "ether"),
+            }
+        )
+
+        chain.mine_block()
+
+    # return private keys
+
+    return keys
 
 
 @pytest.fixture
-def master(
+def dai(
     chain: eth_tester.EthereumTester,
-    users: typing.Sequence[tui.Address],
+    accounts: t.Sequence[tui.PrivateKey],
     w3: web3.Web3,
-) -> tui.PrivateKey:
+) -> tui.DaiMockContract:
+    """
+    Deploy a mock Dai contract using account 0 and credit all accounts with 1
+    million Dai.
 
-    # generate private key for master account
+    :return: the mock Dai contract
+    """
 
-    master_account = tui.PrivateKey.random()
+    # deploy mock Dai contract
 
-    # eth-tester unfortunately signs read-only calls, so must add private key
-
-    chain.add_account(bytes(master_account).hex())
-
-    # transfer some ether to new account
-
-    w3.eth.sendTransaction(
-        {
-            "from": users[0]._checksummed,
-            "to": master_account.address._checksummed,
-            "value": web3.Web3.toWei(100_000, "ether"),
-        }
+    transaction_deploy = tui.DaiMockContract.deploy(
+        provider=w3.provider, account_private_key=accounts[0]
     )
 
     chain.mine_block()
 
-    # return master account private key
+    assert transaction_deploy.is_done()
+    dai = transaction_deploy.get()
 
-    return master_account
+    # credit all accounts with 1 million Dai
+
+    for acc in accounts:
+
+        transaction_mint = dai.mint(
+            account_address=acc.address, atto_dai=1_000_000 * (10 ** 18)
+        )
+
+        chain.mine_block()
+
+        assert transaction_mint.is_done()
+        transaction_mint.get()
+
+    # return mock Dai contract
+
+    return dai
 
 
 @pytest.fixture
 def controller(
     chain: eth_tester.EthereumTester,
-    master: tui.PrivateKey,
-    users: typing.Sequence[tui.Address],
+    dai: tui.DaiMockContract,
+    accounts: t.Sequence[tui.PrivateKey],
     w3: web3.Web3,
 ) -> tui.Controller:
+    """
+    Deploy a controller using account 0 and with a 1% market fee.
 
-    # deploy controller
+    :return: the deployed controller
+    """
 
-    tx_controller = tui.Controller.deploy(
+    transaction_deploy = tui.Controller.deploy(
         provider=w3.provider,
-        master_account_private_key=master,
-        dai_contract_address=tui.Address.MAINNET_DAI_CONTRACT,
-        market_fee_atto_dai_per_nano_dai=42,
+        master_account_private_key=accounts[0],
+        dai_contract_address=dai.address,
+        market_fee_atto_dai_per_nano_dai=10 ** 7,
     )
 
-    assert not tx_controller.is_done()
     chain.mine_block()
-    assert tx_controller.is_done()
 
-    controller = tx_controller.get()
+    assert transaction_deploy.is_done()
 
-    # test access to controller properties and methods
+    return transaction_deploy.get()
 
-    _ = controller.chain_id
-    _ = controller.contract_address
-    _ = controller.market
 
-    assert not tuple(controller.loans.get_all())
-    assert not tuple(controller.loans.get_by_recipient(users[0]))
+def _finalized_loan(
+    chain: eth_tester.EthereumTester,
+    controller: tui.Controller,
+    accounts: t.Sequence[tui.PrivateKey],
+    w3: web3.Web3,
+) -> tui.Loan:
 
-    assert (
-        controller.loans.get_by_identifier(
-            tui.LoanIdentifier(secrets.token_bytes(20))
-        )
-        is None
-    )
+    # create loan in phase ACTIVE
 
-    # with pytest.raises(ValueError, match=r"is not the owner of"):
-    #     tui.Controller(
-    #         provider=w3.provider,
-    #         master_account_private_key=tui.PrivateKey.random(),
-    #         contract_address=controller.contract_address,
-    #     )
+    loan = _active_loan(chain, controller, accounts, w3)
 
-    assert controller.market.get_fee_atto_dai_per_nano_dai() == 42
+    # finalize loan
 
-    return controller
+    transaction_finalize = loan.finalize()
+
+    chain.mine_block()
+
+    assert transaction_finalize.is_done()
+    transaction_finalize.get()
+
+    assert loan.get_state().phase == tui.LoanPhase.FINALIZED
+
+    # return loan
+
+    return loan
 
 
 @pytest.fixture
-def loan(
+def funding_loan(
     chain: eth_tester.EthereumTester,
     controller: tui.Controller,
-    users: typing.Sequence[tui.Address],
+    accounts: t.Sequence[tui.PrivateKey],
+) -> tui.Loan:
+    """
+    Create a loan with:
+
+    - account 1 as the recipient,
+    - 1 minute to expiration,
+    - a funding fee of 5%,
+    - a payment fee of 10%, and
+    - a requested value of 20 thousand Dai.
+
+    :return: the loan, which is in phase FUNDING
+    """
+
+    return _funding_loan(chain, controller, accounts)
+
+
+@pytest.fixture
+def active_loan(
+    chain: eth_tester.EthereumTester,
+    controller: tui.Controller,
+    accounts: t.Sequence[tui.PrivateKey],
+    w3: web3.Web3,
+) -> tui.Loan:
+    """
+    Create a loan with:
+
+    - account 1 as the recipient,
+    - 1 minute to expiration,
+    - a funding fee of 5%,
+    - a payment fee of 10%, and
+    - a requested value of 20 thousand Dai,
+
+    and then have account 2 provide the full requested value.
+
+    :return: the loan, which is in phase ACTIVE
+    """
+
+    return _active_loan(chain, controller, accounts, w3)
+
+
+def _active_loan(
+    chain: eth_tester.EthereumTester,
+    controller: tui.Controller,
+    accounts: t.Sequence[tui.PrivateKey],
+    w3: web3.Web3,
 ) -> tui.Loan:
 
-    tx_create = controller.loans.create(
-        recipient_address=users[0],
+    # create loan in phase FUNDING
+
+    loan = _funding_loan(chain, controller, accounts)
+
+    # fully fund loan
+
+    util.execute_user_transactions(
+        w3=w3,
+        from_address=accounts[2].address,
+        transactions=loan.user_transaction_builder.provide_funds(
+            value_atto_dai=loan.requested_value_atto_dai
+        ),
+    )
+
+    assert loan.get_state().phase == tui.LoanPhase.ACTIVE
+
+    # return loan
+
+    return loan
+
+
+@pytest.fixture
+def finalized_loan(
+    chain: eth_tester.EthereumTester,
+    controller: tui.Controller,
+    accounts: t.Sequence[tui.PrivateKey],
+    w3: web3.Web3,
+) -> tui.Loan:
+    """
+    Create a loan with:
+
+    - account 1 as the recipient,
+    - 1 minute to expiration,
+    - a funding fee of 5%,
+    - a payment fee of 10%, and
+    - a requested value of 20 thousand Dai,
+
+    then have account 2 provide the full requested value, and then finalize the
+    loan.
+
+    :return: the loan, which is in phase FINALIZED
+    """
+
+    return _finalized_loan(chain, controller, accounts, w3)
+
+
+def _funding_loan(
+    chain: eth_tester.EthereumTester,
+    controller: tui.Controller,
+    accounts: t.Sequence[tui.PrivateKey],
+) -> tui.Loan:
+
+    transaction_create = controller.loans.create(
+        recipient_address=accounts[1].address,
         time_to_expiration=datetime.timedelta(minutes=1),
         funding_fee_atto_dai_per_dai=5 * (10 ** 16),
         payment_fee_atto_dai_per_dai=10 * (10 ** 16),
         requested_value_atto_dai=20_000 * (10 ** 18),
     )
 
-    assert not tx_create.is_done()
+    assert not transaction_create.is_done()
 
     chain.mine_block()
-    assert tx_create.is_done()
+    assert transaction_create.is_done()
 
-    loan = tx_create.get()
+    loan = transaction_create.get()
 
     return loan
 

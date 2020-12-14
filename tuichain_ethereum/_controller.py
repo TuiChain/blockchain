@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools as _functools
+import typing as _t
 
 import web3 as _web3
 import web3.contract as _web3_contract
@@ -52,10 +53,10 @@ class Controller:
         :param dai_contract_address: the address of the Dai contract to be used
         :param market_fee_atto_dai_per_nano_dai: the initial market fee, in
             atto-Dai per nano-Dai
+
         :return: a transaction whose result is a ``Controller`` instance
             connected to the deployed TuiChain controller contract
 
-        :raise ValueError: if ``dai_contract_address`` is the zero address
         :raise ValueError: if ``market_fee_atto_dai_per_nano_dai`` is negative
         """
 
@@ -65,11 +66,6 @@ class Controller:
         assert isinstance(master_account_private_key, PrivateKey)
         assert isinstance(dai_contract_address, Address)
         assert isinstance(market_fee_atto_dai_per_nano_dai, int)
-
-        if dai_contract_address == Address._ZERO:
-            raise ValueError(
-                "`dai_contract_address` must not be the zero address"
-            )
 
         if market_fee_atto_dai_per_nano_dai < 0:
             raise ValueError("`fee_atto_dai_per_nano_dai` must not be negative")
@@ -110,8 +106,11 @@ class Controller:
         return Transaction._real(w3=w3, tx_hash=tx_hash, on_success=on_success)
 
     __w3: _web3.Web3
+    __chain_id: int
     __master_account: PrivateKey
+
     __contract: _web3_contract.Contract
+    __dai_contract: _web3_contract.Contract
 
     def __init__(
         self,
@@ -156,13 +155,20 @@ class Controller:
 
         # store chain identifier and master account
 
+        self.__chain_id = int(self.__w3.eth.chainId)
+
         self.__master_account = master_account_private_key
 
-        # get controller contract
+        # get controller and Dai contracts
 
         self.__contract = self.__w3.eth.contract(
             address=contract_address._checksummed,
             abi=_tuichain_contracts.TuiChainController.ABI,
+        )
+
+        self.__dai_contract = self.__w3.eth.contract(
+            address=self.__contract.caller.dai(),
+            abi=_tuichain_contracts.IERC20.ABI,
         )
 
         # ensure that master_account is the controller's owner
@@ -189,7 +195,12 @@ class Controller:
         """(private, do not use)"""
         return self.__contract
 
-    @_functools.cached_property
+    @property
+    def _dai_contract(self) -> _web3_contract.Contract:
+        """(private, do not use)"""
+        return self.__dai_contract
+
+    @property
     def chain_id(self) -> int:
         """
         The identifier of the Ethereum network the controller is deployed in.
@@ -197,7 +208,7 @@ class Controller:
         This can be used to distinguish between the Ethereum mainnet, Ropsten
         testnet, some local test network, etc.
         """
-        return int(self.__w3.eth.chainId)
+        return self.__chain_id
 
     @_functools.cached_property
     def contract_address(self) -> Address:
@@ -220,6 +231,12 @@ class Controller:
         from tuichain_ethereum._market import Market
 
         return Market(controller=self)
+
+    def __eq__(self, other: _t.Any) -> bool:
+        raise NotImplementedError
+
+    def __hash__(self) -> int:
+        raise NotImplementedError
 
 
 # ---------------------------------------------------------------------------- #

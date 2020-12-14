@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import abc as _abc
+import dataclasses as _dataclasses
 import datetime as _datetime
 import functools as _functools
 import math as _math
@@ -24,14 +25,16 @@ class Address:
     Instances of this type are equality comparable and hashable.
     """
 
-    _ZERO: _t.ClassVar[Address]
-    """(private, do not use)"""
-
     MAINNET_DAI_CONTRACT: _t.ClassVar[Address]
     """The address of the official Dai contract in the Ethereum mainnet."""
 
     ROPSTEN_TESTNET_DAI_CONTRACT: _t.ClassVar[Address]
     """The address of the official Dai contract in the Ropsten testnet."""
+
+    @classmethod
+    def _random(cls) -> Address:
+        """(private, do not use)"""
+        return PrivateKey.random().address
 
     __address: _web3_types.ChecksumAddress
 
@@ -60,8 +63,12 @@ class Address:
 
         self.__address = _web3.Web3.toChecksumAddress(address)
 
+        if str(self.__address) == "0x0000000000000000000000000000000000000000":
+            raise ValueError(f"Address must not be zero")
+
     def __str__(self) -> str:
-        """Return this address' checksummed string representation."""
+        """Return this address' checksummed string representation, which is
+        always 42 ASCII alphanumeric characters long."""
         return str(self.__address)
 
     def __eq__(self, other: _t.Any) -> bool:
@@ -78,8 +85,6 @@ class Address:
         """(private, do not use)"""
         return self.__address
 
-
-Address._ZERO = Address("0x0000000000000000000000000000000000000000")
 
 Address.MAINNET_DAI_CONTRACT = Address(
     "0x6B175474E89094C44Da98b954EedeAC495271d0F"
@@ -100,12 +105,12 @@ class PrivateKey:
     hashable.
     """
 
-    __key: bytes
-
     @classmethod
     def random(cls) -> PrivateKey:
         """Generate a random private key."""
         return PrivateKey(_web3.Account.create().key)
+
+    __key: bytes
 
     def __init__(self, key: bytes) -> None:
         """
@@ -154,14 +159,6 @@ class PrivateKey:
     ) -> bytes:
         """(private, do not use)"""
 
-        assert isinstance(
-            f,
-            (
-                _web3_contract.ContractConstructor,
-                _web3_contract.ContractFunction,
-            ),
-        )
-
         address = self.address._checksummed
         nonce = w3.eth.getTransactionCount(address, "pending")
 
@@ -173,10 +170,10 @@ class PrivateKey:
 
 # ---------------------------------------------------------------------------- #
 
-T = _t.TypeVar("T")
+_T = _t.TypeVar("_T")
 
 
-class Transaction(_abc.ABC, _t.Generic[T]):
+class Transaction(_abc.ABC, _t.Generic[_T]):
     """
     A handle to a transaction.
 
@@ -202,7 +199,7 @@ class Transaction(_abc.ABC, _t.Generic[T]):
         *,
         timeout: _datetime.timedelta = _datetime.timedelta(minutes=2),
         poll_period: _datetime.timedelta = _datetime.timedelta(seconds=0.1),
-    ) -> T:
+    ) -> _T:
         """
         Wait until the transaction is confirmed or fails and return its result
         or raise an appropriate exception.
@@ -210,6 +207,7 @@ class Transaction(_abc.ABC, _t.Generic[T]):
         :param timeout: maximum amount of time to wait until the transaction is
             confirmed or fails
         :param poll_period: how much time to wait in between state checks
+
         :return: the transaction's result
 
         :raise ValueError: if ``timeout`` is negative
@@ -238,12 +236,12 @@ class Transaction(_abc.ABC, _t.Generic[T]):
         cls,
         w3: _web3.Web3,
         tx_hash: bytes,
-        on_success: _t.Callable[[_web3_types.TxReceipt], T],
+        on_success: _t.Callable[[_web3_types.TxReceipt], _T],
         *,
         on_failure: _t.Optional[
             _t.Callable[[_web3_types.TxReceipt], None]
         ] = None,
-    ) -> Transaction[T]:
+    ) -> Transaction[_T]:
         """(private, do not use)"""
         return _RealTransaction(
             w3,
@@ -253,30 +251,36 @@ class Transaction(_abc.ABC, _t.Generic[T]):
         )
 
     @classmethod
-    def _fake_successful(cls, result: T) -> Transaction[T]:
+    def _fake_successful(cls, result: _T) -> Transaction[_T]:
         """(private, do not use)"""
         return _FakeSuccessfulTransaction(result)
 
     @classmethod
-    def _fake_failed(cls, error: BaseException) -> Transaction[T]:
+    def _fake_failed(cls, error: BaseException) -> Transaction[_T]:
         """(private, do not use)"""
         return _FakeFailedTransaction(error)
 
+    def __eq__(self, other: _t.Any) -> bool:
+        raise NotImplementedError
 
-class _RealTransaction(Transaction[T]):
+    def __hash__(self) -> int:
+        raise NotImplementedError
+
+
+class _RealTransaction(Transaction[_T]):
     """(private, do not use)"""
 
     __w3: _web3.Web3
     __hash: _web3_types.Hash32
 
-    __on_success: _t.Tuple[_t.Callable[[_web3_types.TxReceipt], T]]
+    __on_success: _t.Tuple[_t.Callable[[_web3_types.TxReceipt], _T]]
     __on_failure: _t.Tuple[_t.Callable[[_web3_types.TxReceipt], None]]
 
     def __init__(
         self,
         w3: _web3.Web3,
         tx_hash: bytes,
-        on_success: _t.Callable[[_web3_types.TxReceipt], T],
+        on_success: _t.Callable[[_web3_types.TxReceipt], _T],
         on_failure: _t.Callable[[_web3_types.TxReceipt], None],
     ) -> None:
         """(private, do not use)"""
@@ -304,7 +308,7 @@ class _RealTransaction(Transaction[T]):
         *,
         timeout: _datetime.timedelta = _datetime.timedelta(minutes=2),
         poll_period: _datetime.timedelta = _datetime.timedelta(seconds=0.1),
-    ) -> T:
+    ) -> _T:
 
         # validate arguments
 
@@ -313,7 +317,7 @@ class _RealTransaction(Transaction[T]):
         # fail immediately if timeout is zero and transaction is not done
 
         if timeout == _datetime.timedelta() and not self.is_done():
-            raise TimeoutError("Transaction still pending confirmation")
+            raise TimeoutError("Transaction is still pending confirmation")
 
         # await transaction confirmation
 
@@ -324,7 +328,7 @@ class _RealTransaction(Transaction[T]):
                 poll_latency=poll_period.total_seconds(),
             )
         except _web3_exceptions.TimeExhausted:
-            raise TimeoutError("Transaction still pending confirmation")
+            raise TimeoutError("Transaction is still pending confirmation")
 
         # check transaction status
 
@@ -337,12 +341,12 @@ class _RealTransaction(Transaction[T]):
         return self.__on_success[0](receipt)
 
 
-class _FakeSuccessfulTransaction(Transaction[T]):
+class _FakeSuccessfulTransaction(Transaction[_T]):
     """(private, do not use)"""
 
-    __result: T
+    __result: _T
 
-    def __init__(self, result: T) -> None:
+    def __init__(self, result: _T) -> None:
         """(private, do not use)"""
         self.__result = result
 
@@ -354,12 +358,12 @@ class _FakeSuccessfulTransaction(Transaction[T]):
         *,
         timeout: _datetime.timedelta = _datetime.timedelta(minutes=2),
         poll_period: _datetime.timedelta = _datetime.timedelta(seconds=0.1),
-    ) -> T:
+    ) -> _T:
         Transaction._validate_get(timeout=timeout, poll_period=poll_period)
         return self.__result
 
 
-class _FakeFailedTransaction(Transaction[T]):
+class _FakeFailedTransaction(Transaction[_T]):
     """(private, do not use)"""
 
     __error: BaseException
@@ -376,9 +380,47 @@ class _FakeFailedTransaction(Transaction[T]):
         *,
         timeout: _datetime.timedelta = _datetime.timedelta(minutes=2),
         poll_period: _datetime.timedelta = _datetime.timedelta(seconds=0.1),
-    ) -> T:
+    ) -> _T:
         Transaction._validate_get(timeout=timeout, poll_period=poll_period)
         raise self.__error
+
+
+# ---------------------------------------------------------------------------- #
+
+
+@_dataclasses.dataclass
+class UserTransaction:
+    """Holds the *to* and *data* fields of a transaction to be signed and
+    submitted directly by an user."""
+
+    to: str
+    """The transaction's *to* field."""
+
+    data: str
+    """The transaction's *data* field."""
+
+    @classmethod
+    def _build(cls, f: _web3_contract.ContractFunction) -> UserTransaction:
+        """(private, do not use)"""
+
+        # prevent simulated executions for gas estimation
+        params = _web3_types.TxParams(
+            gas=_web3_types.Wei(0), gasPrice=_web3_types.Wei(0)
+        )
+
+        data = f.buildTransaction(params)["data"]
+        assert isinstance(data, str)
+
+        return UserTransaction(
+            to=str(_web3.Web3.toChecksumAddress(f.address)), data=str(data)
+        )
+
+    @classmethod
+    def _build_sequence(
+        cls, *f: _web3_contract.ContractFunction
+    ) -> _t.Sequence[UserTransaction]:
+        """(private, do not use)"""
+        return tuple(map(UserTransaction._build, f))
 
 
 # ---------------------------------------------------------------------------- #

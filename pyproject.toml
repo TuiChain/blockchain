@@ -22,7 +22,7 @@ extras =
 commands =
     mypy
     black --check setup.py test tuichain_ethereum
-    pytest test
+    pytest -n auto test
 """
 
 # ---------------------------------------------------------------------------- #

@@ -231,6 +231,7 @@ contract TuiChainLoan is Ownable {
      * 1 Dai, and return the given value converted to Dai.
      *
      * @param _attoDai The input value, in atto-Dai
+     *
      * @return _dai The output value, in Dai
      */
     function _attoDaiToPositiveWholeDai(uint256 _attoDai)

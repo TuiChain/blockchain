@@ -2,26 +2,26 @@
 
 from __future__ import annotations
 
-import secrets
+import pytest
 
-import tuichain_ethereum as tui
+import tuichain_ethereum._test as tui
 
 # ---------------------------------------------------------------------------- #
 
 
 def test_get_all(
     controller: tui.Controller,
-    loan: tui.Loan,
+    funding_loan: tui.Loan,
 ) -> None:
 
     ret = tuple(controller.loans.get_all())
     assert len(ret) == 1
-    assert ret[0].identifier == loan.identifier
+    assert ret[0].identifier == funding_loan.identifier
 
 
-def test_loans_by_recipient(
+def test_get_by_recipient(
     controller: tui.Controller,
-    loan: tui.Loan,
+    funding_loan: tui.Loan,
 ) -> None:
 
     # non-existent loan
@@ -33,29 +33,28 @@ def test_loans_by_recipient(
 
     # existing loan
 
-    ret = tuple(controller.loans.get_by_recipient(loan.recipient_address))
+    ret = tuple(
+        controller.loans.get_by_recipient(funding_loan.recipient_address)
+    )
     assert len(ret) == 1
-    assert ret[0].identifier == loan.identifier
+    assert ret[0].identifier == funding_loan.identifier
 
 
-def test_loan_by_identifier(
+def test_get_by_identifier(
     controller: tui.Controller,
-    loan: tui.Loan,
+    funding_loan: tui.Loan,
 ) -> None:
 
     # non-existent loan
 
-    ret = controller.loans.get_by_identifier(
-        tui.LoanIdentifier(secrets.token_bytes(20))
-    )
-
-    assert ret is None
+    with pytest.raises(ValueError, match=""):
+        controller.loans.get_by_identifier(tui.LoanIdentifier._random())
 
     # existing loan
 
-    ret = controller.loans.get_by_identifier(loan.identifier)
-    assert ret is not None
-    assert ret.identifier == loan.identifier
+    loan = controller.loans.get_by_identifier(funding_loan.identifier)
+
+    assert loan.identifier == funding_loan.identifier
 
 
 # ---------------------------------------------------------------------------- #
