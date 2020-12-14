@@ -25,6 +25,8 @@ Initially, only the controller and market contracts exist.
 Every time a loan is created, a loan contract is deployed.
 The market contracts and all loan contracts are reachable from the controller contract, which ties the whole thing together.
 
+Visit the [wiki](https://github.com/TuiChain/blockchain/wiki), for more information about the [design models](https://github.com/TuiChain/blockchain/wiki/Design-Models) which sustain the implementation.
+
 ### How to use this repo
 
 This whole repo is a Python package named `tuichain_ethereum`.
