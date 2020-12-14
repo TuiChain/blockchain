@@ -51,6 +51,8 @@ def generate_contract_module() -> None:
 
         f.write("import typing as _t\n")
 
+        add_contract(f, "DaiMock", include_bytecode=True)
+        add_contract(f, "IERC20")
         add_contract(f, "TuiChainController", include_bytecode=True)
         add_contract(f, "TuiChainLoan")
         add_contract(f, "TuiChainMarket")
@@ -68,7 +70,7 @@ def add_contract(
     stream.write(f"    ABI: _t.ClassVar[_t.List[_t.Any]] = {data['abi']!r}\n")
 
     if include_bytecode:
-        stream.write(f"    BYTECODE: str = {data['bytecode']!r}\n")
+        stream.write(f"    BYTECODE: _t.ClassVar[str] = {data['bytecode']!r}\n")
 
 
 # ---------------------------------------------------------------------------- #
@@ -85,7 +87,14 @@ setuptools.setup(
     python_requires="~=3.8",
     install_requires=["web3~=5.13"],
     extras_require={
-        "test": ["black", "mypy", "pytest", "tox", "web3[tester]~=5.13"]
+        "test": [
+            "black",
+            "mypy",
+            "pytest",
+            "pytest-xdist",
+            "tox",
+            "web3[tester]~=5.13",
+        ]
     },
     include_package_data=True,
     zip_safe=False,  # for compatibility with mypy

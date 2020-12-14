@@ -51,7 +51,6 @@ Synopsis of provided types:
   - `LoanIdentifier` - uniquely identifies a loan
   - `LoanPhase(Enum)` - enumeration of the possible phases of a loan
   - `LoanState` - holds the mutable part of a loan's state
-  - `WrongLoanPhaseError(ValueError)` - raised when loan is not in expected phase
 
 - Types providing access to the on-chain infrastructure:
 
@@ -59,6 +58,11 @@ Synopsis of provided types:
   - `Market` - represents an instance of the *market* contract
   - `Loans` - represents a collection of instances of the *loan* contract
   - `Loan` - represents an instance of the *loan* contract
+
+- Helper types for building transactions to be signed and submitted by users:
+
+  - `MarketUserTransactionBuilder` - to build transactions interacting with *market* contracts
+  - `LoanUserTransactionBuilder` - to build transactions interacting with *loan* contracts
 
 Deploy an instance of TuiChain's Ethereum infrastructure with `Controller.deploy()` or connect to an existing controller contract with `Controller()` and go from there.
 

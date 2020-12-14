@@ -112,6 +112,7 @@ contract TuiChainMarket is Ownable {
      * 1 nano-Dai, and return the given value converted to nano-Dai.
      *
      * @param _attoDai The input value, in atto-Dai
+     *
      * @return _nanoDai The output value, in nano-Dai
      */
     function _attoDaiToPositiveWholeNanoDai(uint256 _attoDai)
@@ -197,6 +198,7 @@ contract TuiChainMarket is Ownable {
      * Note that sell positions are stored in an unspecified order.
      *
      * @param _index The index of the sell position
+     *
      * @return _token The ERC-20 contract implementing the token that is up for
      *     sale
      * @return _seller The address of the account or contract that put the
@@ -229,6 +231,7 @@ contract TuiChainMarket is Ownable {
      *
      * @param _token The sell position's token
      * @param _seller The sell position's seller
+     *
      * @return _amountTokens The amount of tokens that are up for sale
      * @return _priceAttoDaiPerToken The selling price, in atto-Dai per token
      */

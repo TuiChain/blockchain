@@ -1,7 +1,6 @@
 {
     "license": "UNLICENSED",
     "scripts": {
-        "compile": "truffle compile",
         "prettier": "prettier --write 'contracts/**/*.sol' 'test/**/*.js'",
         "prettier-check": "prettier --check 'contracts/**/*.sol' 'test/**/*.js'",
         "solhint": "solhint -w 0 'contracts/**/*.sol'",

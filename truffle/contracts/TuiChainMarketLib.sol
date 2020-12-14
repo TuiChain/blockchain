@@ -68,6 +68,7 @@ library TuiChainMarketLib {
      * Note that sell positions are stored in an unspecified order.
      *
      * @param _index The index of the sell position
+     *
      * @return _position The sell position
      */
     function at(SellPositions storage _self, uint256 _index)
@@ -83,6 +84,7 @@ library TuiChainMarketLib {
      *
      * @param _token The sell position's token
      * @param _seller The sell position's seller
+     *
      * @return _exists Whether a sell position with the given token and seller
      *     exists
      */
@@ -99,6 +101,7 @@ library TuiChainMarketLib {
      *
      * @param _token The sell position's token
      * @param _seller The sell position's seller
+     *
      * @return _position The sell position with the given token and seller
      */
     function get(
@@ -106,7 +109,10 @@ library TuiChainMarketLib {
         TuiChainToken _token,
         address _seller
     ) internal view returns (SellPosition storage _position) {
-        return _self.values[_self.indices[_token][_seller].sub(1)];
+        return
+            _self.values[
+                _self.indices[_token][_seller].sub(1, "no such sell position")
+            ];
     }
 
     /**
@@ -148,8 +154,8 @@ library TuiChainMarketLib {
     /**
      * Add an existing sell position.
      *
-     * Note that this invalidates storage references to the SellPosition being
-     * removed.
+     * Note that this invalidates all storage references to existing sell
+     * positions.
      *
      * @param _token The sell position's token
      * @param _seller The sell position's seller
@@ -159,7 +165,8 @@ library TuiChainMarketLib {
         TuiChainToken _token,
         address _seller
     ) internal {
-        uint256 index = _self.indices[_token][_seller].sub(1);
+        uint256 index =
+            _self.indices[_token][_seller].sub(1, "no such sell position");
 
         SellPosition storage last = _self.values[_self.values.length - 1];
 
