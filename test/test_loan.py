@@ -60,7 +60,7 @@ def test_finalize(loan: tui.Loan) -> None:
     tx = loan.finalize()
     assert tx.is_done()
 
-    with pytest.raises(tui.WrongLoanPhaseError) as e:
+    with pytest.raises(tui.InvalidLoanPhaseError) as e:
         tx.get()
 
     assert e.value.observed == tui.LoanPhase.FUNDING

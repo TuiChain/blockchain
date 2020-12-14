@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import abc as _abc
-import dataclasses as _dataclasses
 import datetime as _datetime
-import enum as _enum
+import functools as _functools
 import math as _math
 import typing as _t
 
@@ -97,11 +96,11 @@ class PrivateKey:
     """
     The private key of an Ethereum account.
 
-    Instances of this type are equality comparable and hashable.
+    Instances of this type are convertible to bytes, equality comparable, and
+    hashable.
     """
 
     __key: bytes
-    __address: Address
 
     @classmethod
     def random(cls) -> PrivateKey:
@@ -124,15 +123,13 @@ class PrivateKey:
         if len(key) != 32:
             raise ValueError("`key` must be 32 bytes in length")
 
-        public_key = _web3_middleware_signing.PrivateKey(key).public_key
-
         self.__key = bytes(key)
-        self.__address = Address(public_key.to_checksum_address())
 
-    @property
+    @_functools.cached_property
     def address(self) -> Address:
         """The address corresponding to this private key."""
-        return self.__address
+        public_key = _web3_middleware_signing.PrivateKey(self.__key).public_key
+        return Address(public_key.to_checksum_address())
 
     def __bytes__(self) -> bytes:
         """Return this private key's representation as a sequence of 32
@@ -165,7 +162,7 @@ class PrivateKey:
             ),
         )
 
-        address = self.__address._checksummed
+        address = self.address._checksummed
         nonce = w3.eth.getTransactionCount(address, "pending")
 
         params = f.buildTransaction({"from": address, "nonce": nonce})
@@ -248,7 +245,12 @@ class Transaction(_abc.ABC, _t.Generic[T]):
         ] = None,
     ) -> Transaction[T]:
         """(private, do not use)"""
-        return _RealTransaction(w3, tx_hash, on_success, on_failure)
+        return _RealTransaction(
+            w3,
+            tx_hash,
+            on_success,
+            (lambda _: None) if on_failure is None else on_failure,
+        )
 
     @classmethod
     def _fake_successful(cls, result: T) -> Transaction[T]:
@@ -275,7 +277,7 @@ class _RealTransaction(Transaction[T]):
         w3: _web3.Web3,
         tx_hash: bytes,
         on_success: _t.Callable[[_web3_types.TxReceipt], T],
-        on_failure: _t.Optional[_t.Callable[[_web3_types.TxReceipt], None]],
+        on_failure: _t.Callable[[_web3_types.TxReceipt], None],
     ) -> None:
         """(private, do not use)"""
 
@@ -286,9 +288,7 @@ class _RealTransaction(Transaction[T]):
         self.__hash = _web3_types.Hash32(tx_hash)
 
         self.__on_success = (on_success,)
-        self.__on_failure = (
-            (lambda _: None) if on_failure is None else on_failure,
-        )
+        self.__on_failure = (on_failure,)
 
     def is_done(self) -> bool:
 
@@ -376,161 +376,9 @@ class _FakeFailedTransaction(Transaction[T]):
         *,
         timeout: _datetime.timedelta = _datetime.timedelta(minutes=2),
         poll_period: _datetime.timedelta = _datetime.timedelta(seconds=0.1),
-    ) -> _t.NoReturn:
+    ) -> T:
         Transaction._validate_get(timeout=timeout, poll_period=poll_period)
         raise self.__error
-
-
-# ---------------------------------------------------------------------------- #
-
-
-class LoanIdentifier:
-    """
-    Identifies a loan.
-
-    Instances of this type are equality comparable and hashable.
-    """
-
-    __identifier: bytes
-
-    def __init__(self, identifier: bytes) -> None:
-        """
-        Initialize a loan identifier from its representation as a sequence of 20
-        bytes.
-
-        :param identifier: the loan identifier's representation
-
-        :raise ValueError: if ``identifier`` is not 20 bytes in length
-        :raise ValueError: if all bytes in ``identifier`` are zero
-        """
-
-        assert isinstance(identifier, bytes)
-
-        if len(identifier) != 20:
-            raise ValueError("`identifier` must be 32 bytes in length")
-
-        if identifier == b"\0" * 20:
-            raise ValueError("`identifier` must not be zero")
-
-        self.__identifier = bytes(identifier)
-
-    def __bytes__(self) -> bytes:
-        """Return this loan identifier's representation as a sequence of 20
-        bytes."""
-        return self.__identifier
-
-    def __eq__(self, other: _t.Any) -> bool:
-        return (
-            type(other) is LoanIdentifier
-            and self.__identifier == other.__identifier
-        )
-
-    def __hash__(self) -> int:
-        return hash(self.__identifier)
-
-    def __repr__(self) -> str:
-        return f"LoanIdentifier({self.__identifier!r})"
-
-
-# ---------------------------------------------------------------------------- #
-
-
-class LoanPhase(_enum.Enum):
-    """Phases of a loan's life cycle."""
-
-    # NOTE: These values must match those in TuiChainLoan.sol
-
-    FUNDING = 0
-    """Loan has not yet been fully funded. Lenders may deposit Dai."""
-
-    EXPIRED = 1
-    """Loan funding did not reach requested value prior to the deadline. Lenders
-    may retrieve deposited Dai."""
-
-    CANCELED = 2
-    """Loan was canceled prior to be fully funded. Lenders may retrieve
-    deposited Dai."""
-
-    ACTIVE = 3
-    """Loan was fully funded and tokens were distributed to lenders. Student is
-    in debt, further payments may occur."""
-
-    FINALIZED = 4
-    """Student is exempt from any further payments. Token owners may redeem them
-    for Dai."""
-
-
-# ---------------------------------------------------------------------------- #
-
-
-@_dataclasses.dataclass
-class LoanState:
-    """Holds a snapshot of a loan's mutable state."""
-
-    phase: LoanPhase
-    """Current loan phase."""
-
-    funded_value_atto_dai: int
-    """
-    Loan value funded so far (excluding fees), in atto-Dai.
-
-    Equals the request value if phase is ACTIVE or FINALIZED.
-    """
-
-    paid_value_atto_dai: _t.Optional[int]
-    """
-    Total value paid so far (excluding fees), in atto-Dai.
-
-    Is None if phase is not ACTIVE or FINALIZED.
-    """
-
-    atto_dai_per_token: _t.Optional[int]
-    """
-    How much atto-Dai each token can be redeemed for.
-
-    Is None if phase is not FINALIZED.
-    """
-
-
-# ---------------------------------------------------------------------------- #
-
-
-class WrongLoanPhaseError(ValueError):
-    """An error caused by a loan not being in the expected phase."""
-
-    __observed: LoanPhase
-    __allowed: _t.AbstractSet[LoanPhase]
-
-    def __init__(
-        self, observed: LoanPhase, allowed: _t.Iterable[LoanPhase]
-    ) -> None:
-        """
-        :param observed: the phase in which the loan was actually in
-        :param allowed: phases in which the loan was allowed to be in
-        """
-
-        self.__observed = observed
-        self.__allowed = frozenset(allowed)
-
-        assert self.__allowed
-        assert observed not in self.__allowed
-
-        sorted_allowed = sorted(self.__allowed, key=lambda p: int(p.value))
-
-        super().__init__(
-            f"Loan is in phase {observed.name}, expected"
-            f" {', '.join(p.name for p in sorted_allowed)}."
-        )
-
-    @property
-    def observed(self) -> LoanPhase:
-        """The phase in which the loan was observed to be."""
-        return self.__observed
-
-    @property
-    def allowed(self) -> _t.AbstractSet[LoanPhase]:
-        """The phases in which the loan was allowed to be."""
-        return self.__allowed
 
 
 # ---------------------------------------------------------------------------- #
