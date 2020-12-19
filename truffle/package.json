@@ -1,21 +1,21 @@
 {
-  "license": "UNLICENSED",
-  "scripts": {
-      "prettier": "prettier --write 'contracts/**/*.sol' 'test/**/*.js'",
-      "prettier-check": "prettier --check 'contracts/**/*.sol' 'test/**/*.js'",
-      "solhint": "solhint -w 0 'contracts/**/*.sol'",
-      "test": "npm run prettier-check && npm run solhint && truffle test",
-      "truffle": "truffle"
-  },
-  "dependencies": {
-      "@openzeppelin/contracts": "^3.2.0",
-      "truffle": "^5.1.52",
-      "bn.js": "^5.1.3"
-  },
-  "devDependencies": {
-      "@openzeppelin/test-helpers": "^0.5.9",
-      "prettier": "1.19.1",
-      "prettier-plugin-solidity": "1.0.0-beta.1",
-      "solhint": "^3.3.2"
-  }
+    "license": "UNLICENSED",
+    "scripts": {
+        "prettier": "prettier --write 'contracts/**/*.sol' 'test/**/*.js'",
+        "prettier-check": "prettier --check 'contracts/**/*.sol' 'test/**/*.js'",
+        "solhint": "solhint -w 0 'contracts/**/*.sol'",
+        "test": "npm run prettier-check && npm run solhint && truffle test",
+        "truffle": "truffle"
+    },
+    "dependencies": {
+        "@openzeppelin/contracts": "^3.2.0",
+        "truffle": "^5.1.52",
+        "bn.js": "^5.1.3"
+    },
+    "devDependencies": {
+        "@openzeppelin/test-helpers": "^0.5.9",
+        "prettier": "1.19.1",
+        "prettier-plugin-solidity": "1.0.0-beta.1",
+        "solhint": "^3.3.2"
+    }
 }
