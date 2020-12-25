@@ -11,8 +11,9 @@ import pytest
 import web3
 import web3.types
 
+import tuichain_ethereum as tui
+import tuichain_ethereum.test as tui_test
 import util
-import tuichain_ethereum._test as tui
 
 # ---------------------------------------------------------------------------- #
 
@@ -94,7 +95,7 @@ def dai(
     chain: eth_tester.EthereumTester,
     accounts: t.Sequence[tui.PrivateKey],
     w3: web3.Web3,
-) -> tui.DaiMockContract:
+) -> tui_test.DaiMockContract:
     """
     Deploy a mock Dai contract using account 0 and credit all accounts with 1
     million Dai.
@@ -104,7 +105,7 @@ def dai(
 
     # deploy mock Dai contract
 
-    transaction_deploy = tui.DaiMockContract.deploy(
+    transaction_deploy = tui_test.DaiMockContract.deploy(
         provider=w3.provider, account_private_key=accounts[0]
     )
 
@@ -115,10 +116,10 @@ def dai(
 
     # credit all accounts with 1 million Dai
 
-    for acc in accounts:
+    for account in accounts:
 
         transaction_mint = dai.mint(
-            account_address=acc.address, atto_dai=1_000_000 * (10 ** 18)
+            account_private_key=account, atto_dai=1_000_000 * (10 ** 18)
         )
 
         chain.mine_block()
@@ -134,7 +135,7 @@ def dai(
 @pytest.fixture
 def controller(
     chain: eth_tester.EthereumTester,
-    dai: tui.DaiMockContract,
+    dai: tui_test.DaiMockContract,
     accounts: t.Sequence[tui.PrivateKey],
     w3: web3.Web3,
 ) -> tui.Controller:

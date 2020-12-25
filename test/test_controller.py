@@ -9,7 +9,8 @@ import pytest
 import web3
 import web3.exceptions
 
-import tuichain_ethereum._test as tui
+import tuichain_ethereum as tui
+import tuichain_ethereum.test as tui_test
 
 # ---------------------------------------------------------------------------- #
 
@@ -17,7 +18,7 @@ import tuichain_ethereum._test as tui
 def test_deploy(
     accounts: t.Sequence[tui.PrivateKey],
     chain: eth_tester.EthereumTester,
-    dai: tui.DaiMockContract,
+    dai: tui_test.DaiMockContract,
     w3: web3.Web3,
 ) -> None:
     def deploy(market_fee_atto_dai_per_nano_dai: int) -> None:

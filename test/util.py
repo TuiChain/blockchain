@@ -10,7 +10,7 @@ import web3
 import web3.contract
 import web3.types
 
-import tuichain_ethereum._test as tui
+import tuichain_ethereum as tui
 
 # ---------------------------------------------------------------------------- #
 

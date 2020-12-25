@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-import tuichain_ethereum._test as tui
+import tuichain_ethereum as tui
 
 # ---------------------------------------------------------------------------- #
 

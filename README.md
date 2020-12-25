@@ -19,7 +19,7 @@ An instance of the entire on-chain TuiChain infrastructure is composed of:
 - any number of *loan* contracts.
 
 The idea for the final application is to have a single instance of this contract infrastructure deployed in the Ethereum mainnet.
-In practice we will use local chains for testing and development and also the public Ropsten testnet.
+In practice we will use local chains for testing and development and also the public testnets.
 
 Initially, only the controller and market contracts exist.
 Every time a loan is created, a loan contract is deployed.
@@ -63,6 +63,8 @@ Synopsis of provided types:
 
   - `MarketUserTransactionBuilder` - to build transactions interacting with *market* contracts
   - `LoanUserTransactionBuilder` - to build transactions interacting with *loan* contracts
+
+A `tuichain_ethereum.test` module is also provided and exposes a `DaiMockContract` type, which implements an ERC-20 mock Dai contract useful for testing.
 
 Deploy an instance of TuiChain's Ethereum infrastructure with `Controller.deploy()` or connect to an existing controller contract with `Controller()` and go from there.
 
