@@ -5,7 +5,7 @@ from __future__ import annotations
 import eth_tester
 import pytest
 
-import tuichain_ethereum._test as tui
+import tuichain_ethereum as tui
 import util
 
 # ---------------------------------------------------------------------------- #
