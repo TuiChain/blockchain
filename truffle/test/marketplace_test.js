@@ -12,14 +12,8 @@ const {
     expectRevert // Assertions for transactions that should fail
 } = require("@openzeppelin/test-helpers");
 
-// Mocks an ENUM identical to the one in the TuiChainLoan
-const Phase = Object.freeze({
-    Funding: 0,
-    Expired: 1,
-    Canceled: 2,
-    Active: 3,
-    Finalized: 4
-});
+// Imports our helpers
+var { fundsToInt } = require("./helpers");
 
 /* -------------------------------------------------------------------------- */
 
@@ -49,6 +43,9 @@ contract("Marketplace", function(accounts) {
     // variable which represents the funds provided from account 3, also represent the amount of TuiChainTokens received
     let providedFunds = null;
 
+    // variable wich represents the fee of funding
+    let fundingFee = 0.1;
+
     /* -------------------------------------------------------------------------- */
 
     // runs once before the first test
@@ -61,7 +58,7 @@ contract("Marketplace", function(accounts) {
             _feeRecipient: accounts[0],
             _loanRecipient: accounts[1],
             _secondsToExpiration: 60, // 1 minute
-            _fundingFeeAttoDaiPerDai: BigInt(10) ** BigInt(17), // 10% fee
+            _fundingFeeAttoDaiPerDai: BigInt(fundingFee * 100) ** BigInt(17), // 10% fee
             _paymentFeeAttoDaiPerDai: BigInt(10) ** BigInt(17), // 10% fee
             _requestedValueAttoDai: BigInt(1000) * BigInt(10) ** BigInt(18) // 1000 DAI
         };
@@ -341,6 +338,12 @@ contract("Marketplace", function(accounts) {
     it("Buys from existent sell position", async function() {
         tokensToBuy = 5;
         const buyPrice = BigInt(60) * BigInt(10) ** BigInt(18);
+        const initialSellerDai = fundsToInt(
+            await daiMock.balanceOf(accounts[2])
+        );
+        const initialBuyerDai = fundsToInt(
+            await daiMock.balanceOf(accounts[3])
+        );
 
         await tuiChainMarket.purchase(
             tuiChainToken.address,
@@ -353,8 +356,15 @@ contract("Marketplace", function(accounts) {
         const finalTokensBalance = (
             await tuiChainToken.balanceOf(accounts[3])
         ).toNumber();
+        const finalSellerDai = fundsToInt(await daiMock.balanceOf(accounts[2]));
+        const finalBuyerDai = fundsToInt(await daiMock.balanceOf(accounts[3]));
 
         assert(finalTokensBalance == tokensToBuy);
+        assert(finalSellerDai == initialSellerDai + tokensToBuy * 60);
+        assert(
+            finalBuyerDai ==
+                initialBuyerDai - tokensToBuy * 60 * (1 + fundingFee)
+        );
     });
 
     it("Fails to remove non-existent sell position", async function() {
