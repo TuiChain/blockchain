@@ -1,268 +1,219 @@
 /* -------------------------------------------------------------------------- */
 
-const TuiChainController = artifacts.require("TuiChainController");
-const TuiChainMarket = artifacts.require("TuiChainMarket");
-const TuiChainLoan = artifacts.require("TuiChainLoan");
-
-const DaiMock = artifacts.require("DaiMock");
-
 const {
-  constants, // Common constants, like the zero address and largest integers
-  expectRevert // Assertions for transactions that should fail
+  constants,
+  expectEvent,
+  expectRevert
 } = require("@openzeppelin/test-helpers");
 
-// Mocks an ENUM identical to the one in the TuiChainLoan
-const Phase = Object.freeze({
-  Funding: 0,
-  Expired: 1,
-  Canceled: 2,
-  Active: 3,
-  Finalized: 4
-});
+const { oneDai, oneNanoDai, LoanPhase } = require("./helpers");
+
+const DaiMock = artifacts.require("DaiMock");
+const TuiChainController = artifacts.require("TuiChainController");
+const TuiChainLoan = artifacts.require("TuiChainLoan");
+const TuiChainMarket = artifacts.require("TuiChainMarket");
 
 /* -------------------------------------------------------------------------- */
 
-// Sequence of tests for the deployment and interaction with Controller Contract
-// This tests represent possible interactions from the backend with controller contract
-contract("Controller Deployment and Interaction", function(accounts) {
-  // market fee, is equivalent to 10% of a DAI
-  const marketFeeAttoDaiPerNanoDai = BigInt(10) ** BigInt(8);
+contract("TuiChainController", function(accounts) {
+  let daiMock = null; // deployed DaiMock instance
+  let controller = null; // deployed TuiChainController instance
+  let market = null; // deployed TuiChainMarket instance
+  let loan = null; // deployed TuiChainLoan instance
 
-  /* -------------------------------------------------------------------------- */
+  let createLoanArgs = null; // default arguments to createLoan()
 
-  // variable which represents the deployed DAI mock
-  let daiMock = null;
+  /* ------------------------------------------------------------------------ */
 
-  // variable which represents the deployed controller contract
-  let tuiChainController = null;
+  before(async function() {
+    // deploy mock Dai contract and credit every account with 1000 Dai
 
-  // variable which represents the deployed market contract
-  let tuiChainMarket = null;
-
-  // variable which represents the a deployed loan contract
-  let tuiChainLoan = null;
-
-  // variable which represents the loan object
-  let loanObject = null;
-
-  /* -------------------------------------------------------------------------- */
-
-  // runs once before the first test
-  before(async () => {
-    // deploy contract which mocks DAI contract
     daiMock = await DaiMock.new();
 
-    // deploy controller contract
-    tuiChainController = await TuiChainController.new(
-      daiMock.address,
-      accounts[0],
-      marketFeeAttoDaiPerNanoDai
+    for (const acc of accounts) await daiMock.mint(acc, BigInt(1000) * oneDai);
+
+    // deploy controller and market contracts
+
+    controller = await TuiChainController.new(
+      daiMock.address, // _dai
+      accounts[0], // _marketFeeRecipient
+      oneNanoDai / BigInt(10) // _marketFeeAttoDaiPerNanoDai, 10% fee
     );
 
-    // get contract from an address with at() function
-    tuiChainMarket = await TuiChainMarket.at(await tuiChainController.market());
-
-    // start every account with 1000 DAI
-    accounts.forEach(account => {
-      daiMock.mint(account, BigInt(1000) * BigInt(10) ** BigInt(18));
-    });
+    market = await TuiChainMarket.at(await controller.market());
   });
 
-  // runs before every test
-  beforeEach(async () => {
-    loanObject = {
+  beforeEach(async function() {
+    createLoanArgs = {
       _feeRecipient: accounts[0],
       _loanRecipient: accounts[1],
-      _secondsToExpiration: 60, // 1 minute
-      _fundingFeeAttoDaiPerDai: BigInt(10) ** BigInt(17), // 10% fee
-      _paymentFeeAttoDaiPerDai: BigInt(10) ** BigInt(17), // 10% fee
-      _requestedValueAttoDai: BigInt(1000) * BigInt(10) ** BigInt(18) // 1000 DAI
+      _secondsToExpiration: BigInt(60), // 1 minute
+      _fundingFeeAttoDaiPerDai: oneDai / BigInt(10), // 10% fee
+      _paymentFeeAttoDaiPerDai: oneDai / BigInt(10), // 10% fee
+      _requestedValueAttoDai: BigInt(1000) * oneDai
     };
   });
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
 
-  it("Fail to change market fee if not the owner", async function() {
-    const newFee = BigInt(2) * BigInt(10) ** BigInt(8);
-
-    try {
-      await tuiChainController.setMarketFee(newFee, {
+  it("Fail to update market fee if not the owner", async function() {
+    await expectRevert(
+      controller.setMarketFee(oneNanoDai / BigInt(50), {
         from: accounts[1]
-      });
-    } catch (e) {
-      return assert(e.message.includes("caller is not the owner"));
-    }
-
-    return assert(false);
-  });
-
-  it("Change market fee to 20% and check it", async function() {
-    const newFee = BigInt(2) * BigInt(10) ** BigInt(8);
-
-    await tuiChainController.setMarketFee(newFee);
-
-    return assert(
-      (await tuiChainMarket.feeAttoDaiPerNanoDai()).toNumber() == newFee
+      }),
+      "Ownable: caller is not the owner"
     );
   });
 
-  /* -------------------------------------------------------------------------- */
+  it("Update market fee", async function() {
+    const newFee = oneNanoDai / BigInt(50);
 
-  it("Fail to create loan with 0 address in _feeRecipient", async function() {
-    loanObject._feeRecipient = constants.ZERO_ADDRESS;
+    await controller.setMarketFee(newFee);
+    assert.equal(await market.feeAttoDaiPerNanoDai(), newFee);
+  });
 
-    await expectRevert.unspecified(
-      tuiChainController.createLoan(...Object.values(loanObject))
+  /* ------------------------------------------------------------------------ */
+
+  it("Fail to create loan with the zero address as fee recipient", async function() {
+    createLoanArgs._feeRecipient = constants.ZERO_ADDRESS;
+
+    await expectRevert(
+      controller.createLoan(...Object.values(createLoanArgs)),
+      "_feeRecipient is the zero address"
     );
   });
 
-  it("Fail to create loan with 0 address in _loanRecipient", async function() {
-    loanObject._loanRecipient = constants.ZERO_ADDRESS;
+  it("Fail to create loan with the zero address as loan recipient", async function() {
+    createLoanArgs._loanRecipient = constants.ZERO_ADDRESS;
 
-    await expectRevert.unspecified(
-      tuiChainController.createLoan(...Object.values(loanObject))
+    await expectRevert(
+      controller.createLoan(...Object.values(createLoanArgs)),
+      "_loanRecipient is the zero address"
     );
   });
 
-  it("Fail to create loan with negative expiration time", async function() {
-    try {
-      loanObject._secondsToExpiration = -1;
+  it("Fail to create loan with zero seconds to expiration", async function() {
+    createLoanArgs._secondsToExpiration = BigInt(0);
 
-      await tuiChainController.createLoan(...Object.values(loanObject));
-    } catch (e) {
-      return assert(e.message.includes("_secondsToExpiration"));
-    }
-
-    return assert(false);
-  });
-
-  it("Fail to create loan with less than a unit of DAI", async function() {
-    loanObject._requestedValueAttoDai = BigInt(10) ** BigInt(17);
-
-    await expectRevert.unspecified(
-      tuiChainController.createLoan(...Object.values(loanObject))
+    await expectRevert(
+      controller.createLoan(...Object.values(createLoanArgs)),
+      "_secondsToExpiration is zero"
     );
   });
 
-  it("Fail to create loan without a multiple integer of a unit of DAI", async function() {
-    loanObject._requestedValueAttoDai = BigInt(1.5 * 10 ** 18);
+  it("Fail to create loan requesting less than 1 Dai", async function() {
+    createLoanArgs._requestedValueAttoDai = oneDai / BigInt(10);
 
-    await expectRevert.unspecified(
-      tuiChainController.createLoan(...Object.values(loanObject))
+    await expectRevert(
+      controller.createLoan(...Object.values(createLoanArgs)),
+      "not a positive multiple of 1 Dai"
     );
   });
 
-  it("Fail to create a loan if not the owner", async function() {
-    try {
-      await tuiChainController.createLoan(...Object.values(loanObject), {
+  it("Fail to create loan requesting a value not multiple of 1 Dai", async function() {
+    createLoanArgs._requestedValueAttoDai = oneDai + oneDai / BigInt(2);
+
+    await expectRevert(
+      controller.createLoan(...Object.values(createLoanArgs)),
+      "not a positive multiple of 1 Dai"
+    );
+  });
+
+  it("Fail to create loan if not the owner", async function() {
+    await expectRevert(
+      controller.createLoan(...Object.values(createLoanArgs), {
         from: accounts[1]
-      });
-    } catch (e) {
-      return assert(e.message.includes("caller is not the owner"));
-    }
-  });
-
-  it("Create a loan with a requested DAI value of 1000 DAI", async function() {
-    const transaction = await tuiChainController.createLoan(
-      ...Object.values(loanObject)
-    );
-
-    tuiChainLoan = await TuiChainLoan.at(transaction.logs[0].address);
-
-    return assert((await tuiChainLoan.token()) != constants.ZERO_ADDRESS);
-  });
-
-  /* -------------------------------------------------------------------------- */
-
-  it("Fail to finalize the loan if not the owner", async function() {
-    try {
-      assert((await tuiChainLoan.checkExpiration.call()) == false);
-
-      await tuiChainController.finalizeLoan(tuiChainLoan.address, {
-        from: accounts[1]
-      });
-    } catch (e) {
-      return assert(e.message.includes("caller is not the owner"));
-    }
-  });
-
-  it("Fail to finalize loan before it turns Active", async function() {
-    assert((await tuiChainLoan.checkExpiration.call()) == false);
-
-    await expectRevert.unspecified(
-      tuiChainController.finalizeLoan(tuiChainLoan.address)
+      }),
+      "Ownable: caller is not the owner"
     );
   });
 
-  it("Finalize the loan", async function() {
-    // 10 accounts giving 100 DAI each
-    for (let index = 0; index < accounts.length; index++) {
-      await daiMock.increaseAllowance(
-        tuiChainLoan.address,
-        BigInt(200) * BigInt(10) ** BigInt(18),
-        { from: accounts[index] }
-      );
-      await tuiChainLoan.provideFunds(BigInt(100) * BigInt(10) ** BigInt(18), {
-        from: accounts[index]
+  it("Create loan", async function() {
+    const receipt = await controller.createLoan(
+      ...Object.values(createLoanArgs)
+    );
+
+    loan = await TuiChainLoan.at(receipt.logs[0].address);
+
+    assert.notEqual(await loan.token(), constants.ZERO_ADDRESS);
+  });
+
+  /* ------------------------------------------------------------------------ */
+
+  it("Fail to finalize loan if not the owner", async function() {
+    assert.isFalse(await loan.checkExpiration.call());
+
+    await expectRevert(
+      controller.finalizeLoan(loan.address, { from: accounts[1] }),
+      "Ownable: caller is not the owner"
+    );
+  });
+
+  it("Fail to finalize loan in phase Funding", async function() {
+    assert.isFalse(await loan.checkExpiration.call());
+
+    await expectRevert(controller.finalizeLoan(loan.address), "wrong phase");
+  });
+
+  it("Finalize loan", async function() {
+    // 10 accounts providing 100 Dai each
+
+    let receipt = null;
+
+    for (const acc of accounts) {
+      await daiMock.increaseAllowance(loan.address, BigInt(200) * oneDai, {
+        from: acc
       });
+
+      receipt = await loan.provideFunds(BigInt(100) * oneDai, { from: acc });
     }
 
-    // check that loan is ACTIVE
-    var events = await tuiChainLoan.getPastEvents("PhaseUpdated", {
-      fromBlock: 0,
-      toBlock: "latest"
+    // ensure that loan transitioned to phase Active
+
+    expectEvent(receipt, "PhaseUpdated", { newPhase: LoanPhase.Active });
+
+    // finalize loan
+
+    receipt = await controller.finalizeLoan(loan.address);
+
+    await expectEvent.inTransaction(receipt.tx, loan, "PhaseUpdated", {
+      newPhase: LoanPhase.Finalized
     });
-
-    assert(events[0].returnValues.newPhase == Phase.Active);
-
-    await tuiChainController.finalizeLoan(tuiChainLoan.address);
-
-    events = await tuiChainLoan.getPastEvents("PhaseUpdated", {
-      fromBlock: 0,
-      toBlock: "latest"
-    });
-
-    return assert(events[1].returnValues.newPhase == Phase.Finalized);
   });
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
 
-  it("Fail to cancel the loan if not the owner", async function() {
-    const transaction = await tuiChainController.createLoan(
-      ...Object.values(loanObject)
+  it("Fail to cancel loan if not the owner", async function() {
+    const receipt = await controller.createLoan(
+      ...Object.values(createLoanArgs)
     );
 
-    tuiChainLoan = await TuiChainLoan.at(transaction.logs[0].address);
+    loan = await TuiChainLoan.at(receipt.logs[0].address);
 
-    try {
-      assert((await tuiChainLoan.checkExpiration.call()) == false);
+    assert.isFalse(await loan.checkExpiration.call());
 
-      await tuiChainController.cancelLoan(tuiChainLoan.address, {
-        from: accounts[1]
-      });
-    } catch (e) {
-      return assert(e.message.includes("caller is not the owner"));
-    }
+    await expectRevert(
+      controller.cancelLoan(loan.address, { from: accounts[1] }),
+      "Ownable: caller is not the owner"
+    );
   });
 
-  it("Cancel loan before it expires", async function() {
-    assert((await tuiChainLoan.checkExpiration.call()) == false);
+  it("Cancel loan", async function() {
+    receipt = await controller.cancelLoan(loan.address);
 
-    await tuiChainController.cancelLoan(tuiChainLoan.address);
-
-    const events = await tuiChainLoan.getPastEvents("PhaseUpdated", {
-      fromBlock: 0,
-      toBlock: "latest"
+    await expectEvent.inTransaction(receipt.tx, loan, "PhaseUpdated", {
+      newPhase: LoanPhase.Canceled
     });
-
-    return assert(events[0].returnValues.newPhase == Phase.Canceled);
   });
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
 
-  it("Fail to notify loan activation if it's not a loan", async function() {
-    await expectRevert.unspecified(tuiChainController.notifyLoanActivation());
+  it("Fail to manually notify loan activation", async function() {
+    await expectRevert(
+      controller.notifyLoanActivation(),
+      "message sender is not a loan created by this controller"
+    );
   });
-
-  /* -------------------------------------------------------------------------- */
 });
+
+/* -------------------------------------------------------------------------- */
