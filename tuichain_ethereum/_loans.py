@@ -685,10 +685,6 @@ class LoanUserTransactionBuilder:
             self.__loan._contract.functions.provideFunds(
                 _valueAttoDai=value_atto_dai
             ),
-            # reset Dai allowance
-            self.__loan._controller._dai_contract.functions.approve(
-                spender=self.__loan._contract.address, amount=0
-            ),
         )
 
     def withdraw_funds(
@@ -730,10 +726,6 @@ class LoanUserTransactionBuilder:
             # withdraw funds from loan contract, returning tokens
             self.__loan._contract.functions.withdrawFunds(
                 _valueAttoDai=value_atto_dai
-            ),
-            # reset token allowance
-            self.__loan._token_contract.functions.approve(
-                spender=self.__loan._contract.address, amount=0
             ),
         )
 
@@ -778,10 +770,6 @@ class LoanUserTransactionBuilder:
             self.__loan._contract.functions.makePayment(
                 _valueAttoDai=value_atto_dai
             ),
-            # reset Dai allowance
-            self.__loan._controller._dai_contract.functions.approve(
-                spender=self.__loan._contract.address, amount=0
-            ),
         )
 
     def redeem_tokens(self, amount_tokens: int) -> _t.Sequence[UserTransaction]:
@@ -818,10 +806,6 @@ class LoanUserTransactionBuilder:
             # return tokens to loan contract, obtaining Dai
             self.__loan._contract.functions.redeemTokens(
                 _amountTokens=amount_tokens
-            ),
-            # reset token allowance
-            self.__loan._token_contract.functions.approve(
-                spender=self.__loan._contract.address, amount=0
             ),
         )
 
