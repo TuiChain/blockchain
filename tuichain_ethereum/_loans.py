@@ -477,12 +477,13 @@ class Loan:
         Note that a loan may nevertheless become expired without this function
         ever being called if users interact with it.
 
+        The resulting transaction fails if the loan is not in phase FUNDING or
+        EXPIRED.
+
         This action may use up some ether from the master account.
 
         :return: the corresponding transaction, whose result is ``True`` if the
             loan became or already was expired, and ``False`` otherwise
-
-        :raise ValueError: if the loan is not in phase FUNDING or EXPIRED
         """
 
         # NOTE: This function avoids spending ether unless it can be certain
@@ -548,11 +549,11 @@ class Loan:
         """
         Cancel the loan.
 
+        The resulting transaction fails if the loan is not in phase FUNDING.
+
         This action may use up some ether from the master account.
 
         :return: the corresponding transaction
-
-        :raise ValueError: if the loan is not in phase FUNDING
         """
 
         return self._cancel_or_finalize("cancelLoan", LoanPhase.FUNDING)
@@ -561,11 +562,11 @@ class Loan:
         """
         Finalize the loan.
 
+        The resulting transaction fails if the loan is not in phase ACTIVE.
+
         This action may use up some ether from the master account.
 
         :return: the corresponding transaction
-
-        :raise ValueError: if the loan is not in phase ACTIVE
         """
 
         return self._cancel_or_finalize("finalizeLoan", LoanPhase.ACTIVE)
