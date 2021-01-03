@@ -1,4 +1,10 @@
 {
+    "description": "Blockchain component for the TuiChain application",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/TuiChain/blockchain.git",
+        "directory": "truffle"
+    },
     "license": "UNLICENSED",
     "scripts": {
         "prettier": "prettier --write 'contracts/**/*.sol' 'test/**/*.js'",
@@ -13,6 +19,7 @@
     },
     "devDependencies": {
         "@openzeppelin/test-helpers": "^0.5.10",
+        "bn.js": "^4.11.0",
         "prettier": "1.19.1",
         "prettier-plugin-solidity": "1.0.0-beta.1",
         "solhint": "^3.3.2"
