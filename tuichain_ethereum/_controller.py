@@ -42,10 +42,6 @@ class Controller:
         The ``master_account_private_key`` is currently used for everything,
         from signing and paying transactions to receiving funds.
 
-        Make sure to specify the correct ``dai_contract_address`` for the chain
-        you are deploying to. Constants :const:`Address.MAINNET_DAI_CONTRACT`
-        and :const:`Address.ROPSTEN_TESTNET_DAI_CONTRACT` may be of use.
-
         This action may use up some ether from the master account.
 
         :param provider: specifies the Ethereum client to connect to

@@ -28,9 +28,6 @@ class Address:
     MAINNET_DAI_CONTRACT: _t.ClassVar[Address]
     """The address of the official Dai contract in the Ethereum mainnet."""
 
-    ROPSTEN_TESTNET_DAI_CONTRACT: _t.ClassVar[Address]
-    """The address of the official Dai contract in the Ropsten testnet."""
-
     @classmethod
     def _random(cls) -> Address:
         """(private, do not use)"""
@@ -88,10 +85,6 @@ class Address:
 
 Address.MAINNET_DAI_CONTRACT = Address(
     "0x6B175474E89094C44Da98b954EedeAC495271d0F"
-)
-
-Address.ROPSTEN_TESTNET_DAI_CONTRACT = Address(
-    "0x31F42841c2db5173425b5223809CF3A38FEde360"
 )
 
 # ---------------------------------------------------------------------------- #
