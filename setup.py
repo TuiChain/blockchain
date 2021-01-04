@@ -37,7 +37,9 @@ def generate_contract_module() -> None:
 
     # install dependencies
 
-    subprocess.run(["npm", "install"], cwd="truffle", check=True)
+    subprocess.run(
+        ["npm", "install", "--production"], cwd="truffle", check=True
+    )
 
     # compile contracts
 
