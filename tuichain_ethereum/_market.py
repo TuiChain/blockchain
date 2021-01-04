@@ -313,11 +313,6 @@ class MarketUserTransactionBuilder:
                 _amountTokens=amount_tokens,
                 _priceAttoDaiPerToken=price_atto_dai_per_token,
             ),
-            # reset token allowance
-            loan._token_contract.functions.approve(
-                spender=self.__market._contract.address,
-                amount=0,
-            ),
         )
 
     def remove_sell_position(self, loan: Loan) -> _t.Sequence[UserTransaction]:
@@ -386,11 +381,6 @@ class MarketUserTransactionBuilder:
             self.__market._contract.functions.increaseSellPositionAmount(
                 _token=loan.token_contract_address._checksummed,
                 _increaseAmount=increase_amount,
-            ),
-            # reset token allowance
-            loan._token_contract.functions.approve(
-                spender=self.__market._contract.address,
-                amount=0,
             ),
         )
 
@@ -544,11 +534,6 @@ class MarketUserTransactionBuilder:
                 _amountTokens=amount_tokens,
                 _priceAttoDaiPerToken=price_atto_dai_per_token,
                 _feeAttoDaiPerNanoDai=fee_atto_dai_per_nano_dai,
-            ),
-            # reset Dai allowance
-            self.__market._controller._dai_contract.functions.approve(
-                spender=self.__market._contract.address,
-                amount=0,
             ),
         )
 
