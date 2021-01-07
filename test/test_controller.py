@@ -93,6 +93,10 @@ def test_contract_address(controller: tui.Controller) -> None:
     _ = controller.contract_address
 
 
+def test_dai_contract_address(controller: tui.Controller) -> None:
+    _ = controller.dai_contract_address
+
+
 def test_loans(controller: tui.Controller) -> None:
     _ = controller.loans
 
