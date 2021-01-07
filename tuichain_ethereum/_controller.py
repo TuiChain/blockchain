@@ -212,6 +212,11 @@ class Controller:
         return Address(self.__contract.address)
 
     @_functools.cached_property
+    def dai_contract_address(self) -> Address:
+        """The address of the Dai contract to be used."""
+        return Address(self.__dai_contract.address)
+
+    @_functools.cached_property
     def loans(self) -> Loans:
         """A handle to the collection of loan contracts managed by this
         controller."""
