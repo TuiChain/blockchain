@@ -214,6 +214,25 @@ class Loans:
             if loan.recipient_address == recipient_address
         )
 
+    def get_by_token_holder(self, holder: Address) -> _t.Iterable[Loan]:
+        """
+        Return an iterable over all loans whose token the account with the given
+        address has a positive balance of, in order of creation.
+
+        The iterable always provides a consistent snapshot of the set of
+        existing loans, no matter how slowly it is iterated over.
+        """
+
+        erc20 = self.__controller._w3.eth.contract(
+            abi=_tuichain_contracts.IERC20.ABI
+        )
+
+        def balance(loan: Loan) -> int:
+            contract = erc20(loan.token_contract_address._checksummed)
+            return int(contract.caller.balanceOf(holder._checksummed))
+
+        return (loan for loan in self.get_all() if balance(loan) > 0)
+
     def get_by_identifier(self, identifier: LoanIdentifier) -> Loan:
         """
         Return the loan with the given identifier.
