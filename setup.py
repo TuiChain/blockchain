@@ -96,7 +96,10 @@ setuptools.setup(
             "pytest-xdist",
             "tox",
             "web3[tester]~=5.13",
-        ]
+        ],
+        "web3-test-provider": [
+            "web3[tester]~=5.13",
+        ],
     },
     include_package_data=True,
     zip_safe=False,  # for compatibility with mypy
