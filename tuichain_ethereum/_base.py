@@ -15,6 +15,8 @@ import web3.exceptions as _web3_exceptions
 import web3.middleware.signing as _web3_middleware_signing
 import web3.types as _web3_types
 
+import tuichain_ethereum._contracts as _tuichain_contracts
+
 # ---------------------------------------------------------------------------- #
 
 
