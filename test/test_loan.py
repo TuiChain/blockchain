@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import typing as t
+
 import eth_tester
 import pytest
 
@@ -9,6 +11,18 @@ import tuichain_ethereum as tui
 import util
 
 # ---------------------------------------------------------------------------- #
+
+
+def test_get_token_balance_of(
+    accounts: t.Sequence[tui.PrivateKey],
+    active_loan: tui.Loan,
+) -> None:
+
+    balance = active_loan.get_token_balance_of(accounts[1].address)
+    assert balance == 0
+
+    balance = active_loan.get_token_balance_of(accounts[2].address)
+    assert balance == (active_loan.requested_value_atto_dai // (10 ** 18))
 
 
 def test_try_expire(

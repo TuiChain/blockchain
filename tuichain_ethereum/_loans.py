@@ -451,6 +451,18 @@ class Loan:
         """Requested loan value, in atto-Dai."""
         return int(self._contract.caller.requestedValueAttoDai())
 
+    def get_token_balance_of(self, account: Address) -> int:
+        """
+        Return the amount of this loan's tokens that the account with the given
+        address is currently holding.
+
+        :param account: the address of the account whose balance to return
+
+        :return: the balance of the account with the given address, in number of
+            tokens of this loan
+        """
+        return int(self._token_contract.caller.balanceOf(account._checksummed))
+
     def get_state(self) -> LoanState:
         """
         Return information about the loan's mutable state.
