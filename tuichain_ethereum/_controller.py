@@ -196,6 +196,16 @@ class Controller:
         """(private, do not use)"""
         return self.__dai_contract
 
+    @_functools.cached_property
+    def _loan_contract_factory(self) -> _t.Type[_web3_contract.Contract]:
+        """(private, do not use)"""
+        return self.__w3.eth.contract(abi=_tuichain_contracts.TuiChainLoan.ABI)
+
+    @_functools.cached_property
+    def _token_contract_factory(self) -> _t.Type[_web3_contract.Contract]:
+        """(private, do not use)"""
+        return self.__w3.eth.contract(abi=_tuichain_contracts.TuiChainToken.ABI)
+
     @property
     def chain_id(self) -> int:
         """

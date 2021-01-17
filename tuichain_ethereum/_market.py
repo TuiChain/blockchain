@@ -138,9 +138,8 @@ class Market:
                 price_atto_dai_per_token,
             ] = caller.sellPositionAt(i)
 
-            token_contract = self.__controller._w3.eth.contract(
-                address=token,
-                abi=_tuichain_contracts.TuiChainToken.ABI,
+            token_contract = self.__controller._token_contract_factory(
+                address=token
             )
 
             loan = Loan(
@@ -166,8 +165,6 @@ class Market:
         existing sell positions, no matter how slowly it is iterated over.
         """
 
-        # TODO: implement properly
-
         assert isinstance(loan, Loan)
 
         return (
@@ -186,8 +183,6 @@ class Market:
         The iterable always provides a consistent snapshot of the set of
         existing sell positions, no matter how slowly it is iterated over.
         """
-
-        # TODO: implement properly
 
         assert isinstance(seller_address, Address)
 
@@ -217,7 +212,7 @@ class Market:
                 _seller=seller_address._checksummed,
             )
 
-        except _web3_exceptions.SolidityError as e:
+        except Exception as e:
 
             if "no such sell position" in str(e):
                 return None
@@ -241,15 +236,6 @@ class Market:
 
 
 # ---------------------------------------------------------------------------- #
-
-
-def _ensure_positive_whole_nano_dai(name: str, atto_dai: int) -> None:
-    """(private, do not use)"""
-
-    assert isinstance(atto_dai, int)
-
-    if atto_dai <= 0 or atto_dai % (10 ** 9) != 0:
-        raise ValueError(f"`{name}` must be a positive multiple of 1 nano-Dai")
 
 
 class MarketUserTransactionBuilder:
@@ -291,13 +277,19 @@ class MarketUserTransactionBuilder:
 
         assert isinstance(loan, Loan)
         assert isinstance(amount_tokens, int)
+        assert isinstance(price_atto_dai_per_token, int)
 
         if amount_tokens <= 0:
             raise ValueError("`amount_tokens` must be positive")
 
-        _ensure_positive_whole_nano_dai(
-            "price_atto_dai_per_token", price_atto_dai_per_token
-        )
+        if (
+            price_atto_dai_per_token <= 0
+            or price_atto_dai_per_token % (10 ** 9) != 0
+        ):
+            raise ValueError(
+                "`price_atto_dai_per_token` must be a positive multiple of 1"
+                " nano-Dai"
+            )
 
         # build and return transactions
 
@@ -451,10 +443,16 @@ class MarketUserTransactionBuilder:
         # validate arguments
 
         assert isinstance(loan, Loan)
+        assert isinstance(new_price_atto_dai_per_token, int)
 
-        _ensure_positive_whole_nano_dai(
-            "new_price_atto_dai_per_token", new_price_atto_dai_per_token
-        )
+        if (
+            new_price_atto_dai_per_token <= 0
+            or new_price_atto_dai_per_token % (10 ** 9) != 0
+        ):
+            raise ValueError(
+                "`new_price_atto_dai_per_token` must be a positive multiple of"
+                " 1 nano-Dai"
+            )
 
         # build and return transactions
 
@@ -502,14 +500,20 @@ class MarketUserTransactionBuilder:
         assert isinstance(loan, Loan)
         assert isinstance(seller_address, Address)
         assert isinstance(amount_tokens, int)
+        assert isinstance(price_atto_dai_per_token, int)
         assert isinstance(fee_atto_dai_per_nano_dai, int)
 
         if amount_tokens <= 0:
             raise ValueError("`amount_tokens` must be positive")
 
-        _ensure_positive_whole_nano_dai(
-            "price_atto_dai_per_token", price_atto_dai_per_token
-        )
+        if (
+            price_atto_dai_per_token <= 0
+            or price_atto_dai_per_token % (10 ** 9) != 0
+        ):
+            raise ValueError(
+                "`price_atto_dai_per_token` must be a positive multiple of 1"
+                " nano-Dai"
+            )
 
         if fee_atto_dai_per_nano_dai < 0:
             raise ValueError("`fee_atto_dai_per_nano_dai` must not be negative")

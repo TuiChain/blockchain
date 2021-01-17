@@ -132,6 +132,9 @@ def dai(
     return dai
 
 
+# ---------------------------------------------------------------------------- #
+
+
 @pytest.fixture
 def controller(
     chain: eth_tester.EthereumTester,
@@ -159,33 +162,6 @@ def controller(
     return transaction_deploy.get()
 
 
-def _finalized_loan(
-    chain: eth_tester.EthereumTester,
-    controller: tui.Controller,
-    accounts: t.Sequence[tui.PrivateKey],
-    w3: web3.Web3,
-) -> tui.Loan:
-
-    # create loan in phase ACTIVE
-
-    loan = _active_loan(chain, controller, accounts, w3)
-
-    # finalize loan
-
-    transaction_finalize = loan.finalize()
-
-    chain.mine_block()
-
-    assert transaction_finalize.is_done()
-    transaction_finalize.get()
-
-    assert loan.get_state().phase == tui.LoanPhase.FINALIZED
-
-    # return loan
-
-    return loan
-
-
 @pytest.fixture
 def funding_loan(
     chain: eth_tester.EthereumTester,
@@ -205,6 +181,30 @@ def funding_loan(
     """
 
     return _funding_loan(chain, controller, accounts)
+
+
+def _funding_loan(
+    chain: eth_tester.EthereumTester,
+    controller: tui.Controller,
+    accounts: t.Sequence[tui.PrivateKey],
+) -> tui.Loan:
+
+    transaction_create = controller.loans.create(
+        recipient_address=accounts[1].address,
+        time_to_expiration=datetime.timedelta(minutes=1),
+        funding_fee_atto_dai_per_dai=5 * (10 ** 16),
+        payment_fee_atto_dai_per_dai=10 * (10 ** 16),
+        requested_value_atto_dai=20_000 * (10 ** 18),
+    )
+
+    assert not transaction_create.is_done()
+
+    chain.mine_block()
+    assert transaction_create.is_done()
+
+    loan = transaction_create.get()
+
+    return loan
 
 
 @pytest.fixture
@@ -284,26 +284,29 @@ def finalized_loan(
     return _finalized_loan(chain, controller, accounts, w3)
 
 
-def _funding_loan(
+def _finalized_loan(
     chain: eth_tester.EthereumTester,
     controller: tui.Controller,
     accounts: t.Sequence[tui.PrivateKey],
+    w3: web3.Web3,
 ) -> tui.Loan:
 
-    transaction_create = controller.loans.create(
-        recipient_address=accounts[1].address,
-        time_to_expiration=datetime.timedelta(minutes=1),
-        funding_fee_atto_dai_per_dai=5 * (10 ** 16),
-        payment_fee_atto_dai_per_dai=10 * (10 ** 16),
-        requested_value_atto_dai=20_000 * (10 ** 18),
-    )
+    # create loan in phase ACTIVE
 
-    assert not transaction_create.is_done()
+    loan = _active_loan(chain, controller, accounts, w3)
+
+    # finalize loan
+
+    transaction_finalize = loan.finalize()
 
     chain.mine_block()
-    assert transaction_create.is_done()
 
-    loan = transaction_create.get()
+    assert transaction_finalize.is_done()
+    transaction_finalize.get()
+
+    assert loan.get_state().phase == tui.LoanPhase.FINALIZED
+
+    # return loan
 
     return loan
 

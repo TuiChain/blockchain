@@ -87,7 +87,7 @@ setuptools.setup(
     packages=setuptools.find_packages(include=["tuichain_ethereum*"]),
     package_data={"tuichain_ethereum": ["py.typed"]},  # as per PEP 561
     python_requires="~=3.8",
-    install_requires=["web3~=5.13"],
+    install_requires=["web3~=5.15"],
     extras_require={
         "test": [
             "black",
@@ -95,10 +95,10 @@ setuptools.setup(
             "pytest",
             "pytest-xdist",
             "tox",
-            "web3[tester]~=5.13",
+            "web3[tester]~=5.15",
         ],
         "web3-test-provider": [
-            "web3[tester]~=5.13",
+            "web3[tester]~=5.15",
         ],
     },
     include_package_data=True,

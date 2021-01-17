@@ -104,7 +104,7 @@ def test_withdraw_funds(
 
     # fail to withdraw 6 000 Dai
 
-    with pytest.raises(web3.exceptions.SolidityError):
+    with pytest.raises(Exception):
         withdraw_funds(6_000)
 
     assert funding_loan.get_state().funded_value_atto_dai == 5_001 * (10 ** 18)
@@ -179,9 +179,7 @@ def test_redeem_tokens(
 
     # fail to withdraw 6 000 tokens
 
-    with pytest.raises(
-        web3.exceptions.SolidityError, match="burn amount exceeds balance"
-    ):
+    with pytest.raises(Exception, match="burn amount exceeds balance"):
         redeem_tokens(6_000)
 
     # redeem the remaining 5 001 tokens

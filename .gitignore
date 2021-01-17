@@ -6,7 +6,6 @@
 
 # python stuff
 *.egg-info
-.env
 .mypy_cache
 .pytest_cache
 .tox
@@ -16,6 +15,7 @@
 /build
 /dist
 __pycache__
+venv
 
 # auto-generated _contracts module
 /tuichain_ethereum/_contracts.py
