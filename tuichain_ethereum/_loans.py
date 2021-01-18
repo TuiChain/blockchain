@@ -111,33 +111,54 @@ class LoanPhase(_enum.Enum):
 # ---------------------------------------------------------------------------- #
 
 
-@_dataclasses.dataclass
 class LoanState:
     """Holds a snapshot of a loan's mutable state."""
 
-    phase: LoanPhase
-    """Current loan phase."""
+    __caller: _web3_contract.ContractCaller
 
-    funded_value_atto_dai: int
-    """
-    Loan value funded so far (excluding fees), in atto-Dai.
+    def __init__(self, caller: _web3_contract.ContractCaller) -> None:
+        """(private, do not use)"""
+        self.__caller = caller
 
-    Equals the request value if phase is ACTIVE or FINALIZED.
-    """
+    @_functools.cached_property
+    def phase(self) -> LoanPhase:
+        """Current loan phase."""
+        return LoanPhase(int(self.__caller.phase()))
 
-    paid_value_atto_dai: _t.Optional[int]
-    """
-    Total value paid so far (excluding fees), in atto-Dai.
+    @_functools.cached_property
+    def funded_value_atto_dai(self) -> int:
+        """
+        Loan value funded so far (excluding fees), in atto-Dai.
 
-    Is None if phase is not ACTIVE or FINALIZED.
-    """
+        Equals the request value if phase is ACTIVE or FINALIZED.
+        """
+        return int(self.__caller.fundedValueAttoDai())
 
-    atto_dai_per_token: _t.Optional[int]
-    """
-    How much atto-Dai each token can be redeemed for.
+    @_functools.cached_property
+    def paid_value_atto_dai(self) -> _t.Optional[int]:
+        """
+        Total value paid so far (excluding fees), in atto-Dai.
 
-    Is None if phase is not FINALIZED.
-    """
+        Is None if phase is not ACTIVE or FINALIZED.
+        """
+        return (
+            int(self.__caller.paidValueAttoDai())
+            if self.phase in [LoanPhase.ACTIVE, LoanPhase.FINALIZED]
+            else None
+        )
+
+    @_functools.cached_property
+    def redemption_value_atto_dai_per_token(self) -> _t.Optional[int]:
+        """
+        How much atto-Dai each token can be redeemed for.
+
+        Is None if phase is not FINALIZED.
+        """
+        return (
+            int(self.__caller.redemptionValueAttoDaiPerToken())
+            if self.phase == LoanPhase.FINALIZED
+            else None
+        )
 
 
 # ---------------------------------------------------------------------------- #
@@ -146,6 +167,7 @@ class LoanState:
 def _wrong_phase_error(
     observed: LoanPhase, allowed: _t.Iterable[LoanPhase]
 ) -> ValueError:
+    """(private, do not use)"""
 
     allowed_set = frozenset(allowed)
 
@@ -204,8 +226,6 @@ class Loans:
         existing loans, no matter how slowly it is iterated over.
         """
 
-        # TODO: implement properly
-
         assert isinstance(recipient_address, Address)
 
         return (
@@ -223,15 +243,13 @@ class Loans:
         existing loans, no matter how slowly it is iterated over.
         """
 
-        erc20 = self.__controller._w3.eth.contract(
-            abi=_tuichain_contracts.IERC20.ABI
+        assert isinstance(holder, Address)
+
+        return (
+            loan
+            for loan in self.get_all()
+            if loan.get_token_balance_of(holder) > 0
         )
-
-        def balance(loan: Loan) -> int:
-            contract = erc20(loan.token_contract_address._checksummed)
-            return int(contract.caller.balanceOf(holder._checksummed))
-
-        return (loan for loan in self.get_all() if balance(loan) > 0)
 
     def get_by_identifier(self, identifier: LoanIdentifier) -> Loan:
         """
@@ -386,19 +404,17 @@ class Loan:
     @_functools.cached_property
     def _contract(self) -> _web3_contract.Contract:
         """(private, do not use)"""
-        return self.__controller._w3.eth.contract(
-            address=self.__identifier._checksummed,
-            abi=_tuichain_contracts.TuiChainLoan.ABI,
+        return self.__controller._loan_contract_factory(
+            address=self.__identifier._checksummed
         )
 
     @_functools.cached_property
     def _token_contract(self) -> _web3_contract.Contract:
         """(private, do not use)"""
-        return self.__controller._w3.eth.contract(
+        return self.__controller._token_contract_factory(
             address=_eth_utils.to_checksum_address(
                 self._contract.caller.token()
             ),
-            abi=_tuichain_contracts.TuiChainToken.ABI,
         )
 
     @_functools.cached_property
@@ -451,6 +467,23 @@ class Loan:
         """Requested loan value, in atto-Dai."""
         return int(self._contract.caller.requestedValueAttoDai())
 
+    def get_state(self) -> LoanState:
+        """
+        Return a consistent snapshot of the loan's mutable state.
+
+        :return: a consistent snapshot of the loan's mutable state
+        """
+
+        # get caller referencing specific block to ensure consistent snapshot
+
+        caller = self._contract.caller(
+            block_identifier=self.__controller._w3.eth.blockNumber
+        )
+
+        # return loan state
+
+        return LoanState(caller)
+
     def get_token_balance_of(self, account: Address) -> int:
         """
         Return the amount of this loan's tokens that the account with the given
@@ -461,41 +494,10 @@ class Loan:
         :return: the balance of the account with the given address, in number of
             tokens of this loan
         """
+
+        assert isinstance(account, Address)
+
         return int(self._token_contract.caller.balanceOf(account._checksummed))
-
-    def get_state(self) -> LoanState:
-        """
-        Return information about the loan's mutable state.
-
-        Returns a consistent snapshot.
-
-        :return: the loan's state
-        """
-
-        # get caller referencing specific block to ensure consistent snapshot
-
-        caller = self._contract.caller(
-            block_identifier=self.__controller._w3.eth.blockNumber
-        )
-
-        # query and return loan state
-
-        phase = LoanPhase(int(caller.phase()))
-
-        return LoanState(
-            phase=phase,
-            funded_value_atto_dai=int(caller.fundedValueAttoDai()),
-            paid_value_atto_dai=(
-                int(caller.paidValueAttoDai())
-                if phase in [LoanPhase.ACTIVE, LoanPhase.FINALIZED]
-                else None
-            ),
-            atto_dai_per_token=(
-                int(caller.redemptionValueAttoDaiPerToken())
-                if phase is LoanPhase.FINALIZED
-                else None
-            ),
-        )
 
     def try_expire(self) -> Transaction[bool]:
         """
@@ -524,7 +526,7 @@ class Loan:
 
         # get latest block once to ensure consistent snapshot
 
-        block = self.__controller._w3.eth.getBlock("latest")
+        block = self.__controller._w3.eth.get_block("latest")
 
         # get loan and its phase
 
@@ -545,7 +547,7 @@ class Loan:
                 )
             )
 
-        elif phase is LoanPhase.EXPIRED:
+        elif phase == LoanPhase.EXPIRED:
 
             # loan already expired, transaction unnecessary
 
@@ -657,15 +659,6 @@ class Loan:
 # ---------------------------------------------------------------------------- #
 
 
-def _ensure_positive_whole_dai(name: str, atto_dai: int) -> None:
-    """(private, do not use)"""
-
-    assert isinstance(atto_dai, int)
-
-    if atto_dai <= 0 or atto_dai % (10 ** 18) != 0:
-        raise ValueError(f"`{name}` must be a positive multiple of 1 Dai")
-
-
 class LoanUserTransactionBuilder:
     """Provides functionality to build transactions for users to interact with a
     loan contract."""
@@ -697,7 +690,12 @@ class LoanUserTransactionBuilder:
 
         # validate arguments and state
 
-        _ensure_positive_whole_dai("value_atto_dai", value_atto_dai)
+        assert isinstance(value_atto_dai, int)
+
+        if value_atto_dai <= 0 or value_atto_dai % (10 ** 18) != 0:
+            raise ValueError(
+                "`value_atto_dai` must be a positive multiple of 1 Dai"
+            )
 
         if (p := self.__loan.get_state().phase) != LoanPhase.FUNDING:
             raise _wrong_phase_error(observed=p, allowed=[LoanPhase.FUNDING])
@@ -740,7 +738,12 @@ class LoanUserTransactionBuilder:
 
         # validate arguments and state
 
-        _ensure_positive_whole_dai("value_atto_dai", value_atto_dai)
+        assert isinstance(value_atto_dai, int)
+
+        if value_atto_dai <= 0 or value_atto_dai % (10 ** 18) != 0:
+            raise ValueError(
+                "`value_atto_dai` must be a positive multiple of 1 Dai"
+            )
 
         if (p := self.__loan.get_state().phase) != LoanPhase.FUNDING:
             raise _wrong_phase_error(observed=p, allowed=[LoanPhase.FUNDING])
@@ -782,7 +785,12 @@ class LoanUserTransactionBuilder:
 
         # validate arguments and state
 
-        _ensure_positive_whole_dai("value_atto_dai", value_atto_dai)
+        assert isinstance(value_atto_dai, int)
+
+        if value_atto_dai <= 0 or value_atto_dai % (10 ** 18) != 0:
+            raise ValueError(
+                "`value_atto_dai` must be a positive multiple of 1 Dai"
+            )
 
         if (p := self.__loan.get_state().phase) != LoanPhase.ACTIVE:
             raise _wrong_phase_error(observed=p, allowed=[LoanPhase.ACTIVE])

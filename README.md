@@ -97,8 +97,8 @@ To work on the contracts, go to `truffle/` and use:
 To develop the Python layer, create a virtualenv and install the Python package in "editable" mode with the `[test]` extras, *e.g.*:
 
 - `cd my-repos/blockchain`
-- `virtualenv .env`
-- `source .env/bin/activate`
+- `virtualenv venv`
+- `source venv/bin/activate`
 - `pip install --use-feature=2020-resolver -e .[test]`
 
 You can then run the tests from the repo root with `tox`, which runs mypy and black in a clean environment and then uses pytest to run the actual tests.

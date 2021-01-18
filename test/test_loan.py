@@ -13,6 +13,22 @@ import util
 # ---------------------------------------------------------------------------- #
 
 
+def test_get_state(
+    funding_loan: tui.Loan,
+    active_loan: tui.Loan,
+    finalized_loan: tui.Loan,
+) -> None:
+    def query(state: tui.LoanState) -> None:
+        _ = state.phase
+        _ = state.funded_value_atto_dai
+        _ = state.paid_value_atto_dai
+        _ = state.redemption_value_atto_dai_per_token
+
+    query(funding_loan.get_state())
+    query(active_loan.get_state())
+    query(finalized_loan.get_state())
+
+
 def test_get_token_balance_of(
     accounts: t.Sequence[tui.PrivateKey],
     active_loan: tui.Loan,
