@@ -99,6 +99,7 @@ To develop the Python layer, create a virtualenv and install the Python package 
 - `cd my-repos/blockchain`
 - `virtualenv venv`
 - `source venv/bin/activate`
+- `pip install pip==20.2.3`
 - `pip install --use-feature=2020-resolver -e .[test]`
 
 You can then run the tests from the repo root with `tox`, which runs mypy and black in a clean environment and then uses pytest to run the actual tests.

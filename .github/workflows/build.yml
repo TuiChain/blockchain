@@ -68,6 +68,8 @@ jobs:
         run: pip3 install --upgrade tox
 
       - name: Run tests
+        env:
+          VIRTUALENV_PIP: 20.2.3  # to work around broken dependencies
         run: tox -e py${{ join(matrix.python, '') }}
 
 # ---------------------------------------------------------------------------- #
