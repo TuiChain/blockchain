@@ -733,7 +733,8 @@ class LoanUserTransactionBuilder:
 
         :raise ValueError: if ``value_atto_dai`` is not a positive multiple of 1
             Dai
-        :raise ValueError: if the loan is not in phase FUNDING
+        :raise ValueError: if the loan is not in phase FUNDING, EXPIRED, or
+            CANCELED
         """
 
         # validate arguments and state
@@ -745,8 +746,14 @@ class LoanUserTransactionBuilder:
                 "`value_atto_dai` must be a positive multiple of 1 Dai"
             )
 
-        if (p := self.__loan.get_state().phase) != LoanPhase.FUNDING:
-            raise _wrong_phase_error(observed=p, allowed=[LoanPhase.FUNDING])
+        allowed_phases = [
+            LoanPhase.FUNDING,
+            LoanPhase.EXPIRED,
+            LoanPhase.CANCELED,
+        ]
+
+        if (p := self.__loan.get_state().phase) not in allowed_phases:
+            raise _wrong_phase_error(observed=p, allowed=allowed_phases)
 
         # build and return transactions
 
